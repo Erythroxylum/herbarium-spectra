@@ -21,13 +21,13 @@ library(pbmcapply)
 #' @Source_code
 #-------------------------------------------------------------------------------
 
-source("aux/data_split.R")
-source("aux/data_segments.R")
-source("aux/model_tune.R")
-source("aux/model_build.R")
-source("aux/model_performance.R")
-source("aux/pls_coefficients.R")
-source("aux/pls_vip.R")
+source("auxiliary/data_split.R")
+source("auxiliary/data_segments.R")
+source("auxiliary/model_tune.R")
+source("auxiliary/model_build.R")
+source("auxiliary/model_performance.R")
+source("auxiliary/pls_coefficients.R")
+source("auxiliary/pls_vip.R")
 
 #'------------------------------------------------------------------------------
 #' @Working_directory
