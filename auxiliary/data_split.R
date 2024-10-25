@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 # Function for data split based on species and accession
 
-data_split <- function(meta, p = 0.6) {
+data_split <- function(meta) {
   
   unique_species <- unique(meta$species)
   collector <- as.numeric()
@@ -13,8 +13,7 @@ data_split <- function(meta, p = 0.6) {
     unique_accession <- unique(sub_meta$accession)
     
     # Ramdomly select accession
-    get_samples <- sample(1:length(unique_accession), 
-                          floor(length(unique_accession)*p))
+    get_samples <- sample(1:length(unique_accession), 10)
     
     # Select accession to subset for traint
     get_samples <- sub_meta$accession %in% unique_accession[get_samples]
