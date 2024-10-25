@@ -34,15 +34,32 @@ source("auxiliary/pls_vip.R")
 #-------------------------------------------------------------------------------
 
 # Select the root_folder to read data and export results
+# Antonio
 root_path <- "C:/Users/jog4076/Downloads"
+# DW
+root_path <- "/Users/dawsonwhite/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/herbarium-spectra"
+
 
 #'------------------------------------------------------------------------------
 #' @Read-Information
 #-------------------------------------------------------------------------------
 
+# download from Google Drive
+library(googledrive)
+# drive_auth() authenticate for first use
+
+# Replace with your actual file ID (https://drive.google.com/file/d/1RciaJCLduoDEO8bQWcGtZWaVxD9HA4V8/view?usp=drive_link)
+file_id <- "1RciaJCLduoDEO8bQWcGtZWaVxD9HA4V8"  # Example file ID
+
+# Specify the full path to save file
+path <- "downloaded_file.csv"  # Adjust for your OS
+
+# Download the file
+drive_download(as_id(file_id), path = path, overwrite = TRUE)
+
 # Select the file of interest
 frame <- fread(paste0(root_path, 
-                      "/fullDataHUH2024_sp25leaf636_noResample_400-2400.csv"))
+                      "/fullDataHUH2024_sp25leaf636_noResample_400-2300.csv"))
 frame <- frame[!is.na(leafKg_m2),]
 
 #-------------------------------------------------------------------------------
@@ -51,14 +68,18 @@ frame <- frame[!is.na(leafKg_m2),]
 
 # Get files from meta data, traits, and spectra.
 
-meta <- frame[, c("class", "order", "family", "genus", "species", "accession", 
-                  "leaf", "scan", "ddmmyyScanned", "absoluteAge", "herbQuality", 
-                  "damage", "glue", "leafStage")]
+meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","species",
+                  "ddmmyyScanned", "absoluteAge", "herbQuality",
+                  "damage", "glue", "leafStage", "greenIndex")]
+
 meta$sample <- 1:nrow(meta)
 
 traits <- frame[, c("leafKg_m2", "leafThickness")]
 
-spectra <- frame[, .SD, .SDcols = 19:ncol(frame)]
+rank <- frame[, c("class", "order", "family", "genus", "spShort")]
+
+spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
+
 
 #-------------------------------------------------------------------------------
 #' @Data-split
@@ -106,11 +127,37 @@ opt_models <- model_tune(meta = meta,
                          threads = 1) # If windows = 1
 
 # Select the optimal based on the CV behavior or PRESS values
-plot(x = 1:ncomp_max, 
-     y = colMeans(opt_models[metric == "PRESS" | estimate == "PRESS", 6:ncol(opt_models)]), 
+#PRESS
+plot(x = 1:ncomp_max,
+     y = colMeans(opt_models[metric == "PRESS" | estimate == "PRESS", 6:ncol(opt_models)]),
      main = "Optimal number of components",
      xlab = "Number of components",
      ylab = "PRESS")
+
+#R2
+plot(x = 1:ncomp_max,
+                    y = colMeans(opt_models[metric == "R2" | estimate == "R2", 6:ncol(opt_models)]),
+                    main = "Optimal number of components",
+                    xlab = "Number of components",
+                    ylab = "R2")
+
+#RMSEP
+pdf("Ncomp_RMSEP_plot.pdf", width = 5, height = 4)
+plot(x = 1:ncomp_max,
+     y = colMeans(opt_models[metric == "RMSEP" | estimate == "RMSEP", 6:ncol(opt_models)]),
+     main = "Optimal number of components",
+     xlab = "Number of components",
+     ylab = "RMSEP",
+     abline(v = ncomp, col = "red"))
+dev.off()
+
+ # Calculate optimal number of components
+n_components_PRESS <- which.min(colMeans(opt_models[metric == "PRESS" | estimate == "PRESS", 6:ncol(opt_models)]))
+n_components_RMSEP <- which.min(colMeans(opt_models[metric == "RMSEP" | estimate == "RMSEP", 6:ncol(opt_models)]))
+n_components_R2 <- which.max(colMeans(opt_models[metric == "R2" | estimate == "R2", 6:ncol(opt_models)]));
+
+# Print all values in a single line
+cat(sprintf("Optimal number of components - PRESS: %d, RMSEP: %d, R2: %d\n", n_components_PRESS, n_components_RMSEP, n_components_R2))
 
 # Manual selection
 ncomp <- 14
