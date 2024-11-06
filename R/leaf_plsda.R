@@ -29,8 +29,6 @@ source("auxiliary/model_tune_plsda.R")
 source("auxiliary/model_build_classification.R")
 source("auxiliary/model_performance_classification.R")
 source("auxiliary/confusionMatrices.R")
-#source("auxiliary/pls_coefficients.R")
-#source("auxiliary/pls_vip.R")
 
 #'------------------------------------------------------------------------------
 #' @Working_directory
@@ -47,7 +45,7 @@ root_path <- getwd()
 
 # Select the file of interest
 frame <- fread(paste0(root_path,
-                      "../fullDataHUH2024_sp25leaf636_noResample_400-2300.csv")) 
+                      "/fullDataHUH2024_sp25leaf636_noResample_400-2300.csv")) 
 frame <- frame[!is.na(leafKg_m2),]
 
 #-------------------------------------------------------------------------------
@@ -178,11 +176,11 @@ performance_plsda_training <- model_performance_plsda(meta_split = meta[split, ]
 anti_split <- setdiff(1:length(species), split)
 
 performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ],
-                                                     species_split = species[anti_split], 
+                                                     species_split = species[!split], 
                                                      spectra_split = spectra[!split, ],
                                                      models = models_plsda,
                                                      ncomp = ncomp,
-                                                     threads = 2)
+                                                     threads = 1)
 
 performance_lda_training <- model_performance_lda(meta_split = meta[split, ],
                                                   species_split = species[split], 
