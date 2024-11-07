@@ -28,7 +28,7 @@ source("auxiliary/folds.R")
 source("auxiliary/model_tune_plsda.R")
 source("auxiliary/model_build_classification.R")
 source("auxiliary/model_performance_classification.R")
-source("auxiliary/confusionMatrices.R")
+source("auxiliary/confusion_matrices_dw.R")
 #source("auxiliary/pls_coefficients.R")
 #source("auxiliary/pls_vip.R")
 
@@ -48,8 +48,7 @@ root_path <- getwd()
 # Select the file of interest
 frame <- fread(paste0(root_path,
                       "/fullDataHUH2024_sp25leaf636_noResample_400-2300.csv")) 
-frame <- fread(paste0(root_path,
-                      "../fullDataHUH2024_sp25leaf636_noResample_400-2300.csv")) 
+frame <- fread("../fullDataHUH2024_sp25leaf636_noResample_400-2300.csv") 
 frame <- frame[!is.na(leafKg_m2),]
 
 #-------------------------------------------------------------------------------
@@ -73,7 +72,7 @@ spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
 #' @Data-split
 #-------------------------------------------------------------------------------
 
-# Get rows for training
+# Select the number of specimens per species to include in training
 split <- data_split(meta = meta)
 
 # Export for record
@@ -84,7 +83,8 @@ saveRDS(split, paste0(root_path, "/classification_split.rds"))
 #-------------------------------------------------------------------------------
 
 # Select a spectral measurement per specimen
-iterations <- 5 # 1000
+iterations <- 3 # 1000
+
 segments <- pbmclapply(X = 1:iterations,
                        FUN = data_segments,
                        meta = meta,
@@ -176,7 +176,7 @@ performance_plsda_training <- model_performance_plsda(meta_split = meta[split, ]
                                                       ncomp = ncomp,
                                                       threads = 2)
 
-#generate anti-split numeric vector for species
+#generate inverse of numeric vector for species split
 inverse_split <- setdiff(1:length(species), split)
 
 performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ],
@@ -208,27 +208,27 @@ saveRDS(performance_lda_testing, paste0(root_path, "/performance_lda_testing.rds
 #' @Confusion-Matrices
 #-------------------------------------------------------------------------------
 
-CM_plsda_training <- confusionMatrices_plsda(meta_split = meta[split,],
+CM_plsda_training <- confusion_matrices_plsda_dw(meta_split = meta[split,],
                                              species_split = species[split], 
                                              spectra_split = spectra[split, ],
                                              models = models_plsda,
                                              ncomp = ncomp,
                                              threads = 1)
 
-CM_plsda_testing <- confusionMatrices_plsda(meta_split = meta[!split,],
+CM_plsda_testing <- confusion_matrices_plsda_dw(meta_split = meta[!split,],
                                             species_split = species[inverse_split], 
                                             spectra_split = spectra[!split, ],
                                             models = models_plsda,
                                             ncomp = ncomp,
                                             threads = 1)
 
-CM_lda_training <- confusionMatrices_lda(meta_split = meta[split,],
+CM_lda_training <- confusion_matrices_lda_dw(meta_split = meta[split,],
                                          species_split = species[split], 
                                          spectra_split = spectra[split, ],
                                          models = models_lda,
                                          threads = 1)
 
-CM_lda_testing <- confusionMatrices_lda(meta_split = meta[!split,],
+CM_lda_testing <- confusion_matrices_lda_dw(meta_split = meta[!split,],
                                         species_split = species[inverse_split], 
                                         spectra_split = spectra[!split, ],
                                         models = models_lda,

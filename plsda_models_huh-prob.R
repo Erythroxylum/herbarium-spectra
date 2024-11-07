@@ -114,6 +114,7 @@ acc_plot <- ggplot(plsFit_herb1$results, aes(x = ncomp, y = Accuracy)) +
 plsda_dn_acc <- "s10comp50/PLSDA_acc_dn_s10comp50.pdf"
 ggsave(plsda_dn_acc, plot = acc_plot, width = 6, height = 6)
 
+#
 # Train another PLS-DA model using up-sampling and optimal ncomp from previous model
 plsFit_herb2 <- train(
   x = herb_spec_train, 
