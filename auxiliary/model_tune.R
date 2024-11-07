@@ -21,12 +21,15 @@ model_tune <- function(meta,
   tune <- function(X, 
                    split, 
                    segments,
+                   meta_split,
                    frame,
                    ncomp_max) {
     
     # Get samples from segments to train
     get_segments <- split %in% segments[[X]]
+    meta_segments <- meta_split[get_segments,]
     sub_frame <- frame[get_segments,]
+    kfolds <- data_folds(meta_segments$species, k = 10)
     
     # Perform model
     ml_model <- plsr(trait ~ ., 
@@ -35,7 +38,8 @@ model_tune <- function(meta,
                      ncomp = ncomp_max,
                      center = TRUE,
                      method = "oscorespls",
-                     maxit = 10000)
+                     maxit = 10000,
+                     segments = kfolds)
     
     # Performance
     RMSEP_train <- pls::RMSEP(object = ml_model,
@@ -72,6 +76,7 @@ model_tune <- function(meta,
   # Parallel processing
   complete <- pbmclapply(X = 1:length(segments), 
                          FUN = tune, 
+                         meta_split = meta_split,
                          split = split, 
                          segments = segments,
                          frame = frame,

@@ -16,6 +16,7 @@ library(pls)
 library(plsVarSel)
 library(parallel)
 library(pbmcapply)
+library(googledrive)
 
 #'------------------------------------------------------------------------------
 #' @Source_code
@@ -23,6 +24,7 @@ library(pbmcapply)
 
 source("auxiliary/data_split.R")
 source("auxiliary/data_segments.R")
+source("auxiliary/folds.R")
 source("auxiliary/model_tune.R")
 source("auxiliary/model_build.R")
 source("auxiliary/model_performance.R")
@@ -44,10 +46,7 @@ root_path <- "/Users/dawsonwhite/Library/Mobile Documents/com~apple~CloudDocs/Sp
 #' @Read-Information
 #-------------------------------------------------------------------------------
 
-# download from Google Drive
-library(googledrive)
 # drive_auth() authenticate for first use
-
 # Replace with your actual file ID (https://drive.google.com/file/d/1RciaJCLduoDEO8bQWcGtZWaVxD9HA4V8/view?usp=drive_link)
 file_id <- "1RciaJCLduoDEO8bQWcGtZWaVxD9HA4V8"  # Example file ID
 
@@ -80,14 +79,12 @@ rank <- frame[, c("class", "order", "family", "genus", "spShort")]
 
 spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
 
-
 #-------------------------------------------------------------------------------
 #' @Data-split
 #-------------------------------------------------------------------------------
 
 # Get rows for training 
-split <- data_split(meta = meta,
-                    p = 0.6)
+split <- data_split(meta = meta)
 
 # Export for record
 saveRDS(split, paste0(root_path, "/split.rds"))
@@ -97,7 +94,7 @@ saveRDS(split, paste0(root_path, "/split.rds"))
 #-------------------------------------------------------------------------------
 
 # Select a spectral measurement per specimen
-iterations <- 1000
+iterations <- 10
 segments <- pbmclapply(X = 1:iterations,
                        FUN = data_segments,
                        meta = meta,
@@ -114,7 +111,7 @@ saveRDS(segments, paste0(root_path, "/segments.rds"))
 
 # Select the optimal number of components for all the iterations
 
-# Max numeber of comp to run
+# Max number of comp to run
 ncomp_max <- 30
 
 # Models to evaluate the optimal
@@ -128,22 +125,24 @@ opt_models <- model_tune(meta = meta,
 
 # Select the optimal based on the CV behavior or PRESS values
 #PRESS
-plot(x = 1:ncomp_max,
+plot(x = 1:(ncol(opt_models)-5),
      y = colMeans(opt_models[metric == "PRESS" | estimate == "PRESS", 6:ncol(opt_models)]),
      main = "Optimal number of components",
      xlab = "Number of components",
      ylab = "PRESS")
 
 #R2
-plot(x = 1:ncomp_max,
-                    y = colMeans(opt_models[metric == "R2" | estimate == "R2", 6:ncol(opt_models)]),
-                    main = "Optimal number of components",
-                    xlab = "Number of components",
-                    ylab = "R2")
+plot(x = 1:(ncol(opt_models)-5),
+     y = colMeans(opt_models[metric == "R2" | estimate == "R2", 6:ncol(opt_models)]),
+     main = "Optimal number of components",
+     xlab = "Number of components",
+     ylab = "R2")
 
 #RMSEP
+ncomp <- 11
+
 pdf("Ncomp_RMSEP_plot.pdf", width = 5, height = 4)
-plot(x = 1:ncomp_max,
+plot(x = 1:(ncol(opt_models)-5),
      y = colMeans(opt_models[metric == "RMSEP" | estimate == "RMSEP", 6:ncol(opt_models)]),
      main = "Optimal number of components",
      xlab = "Number of components",
@@ -160,7 +159,7 @@ n_components_R2 <- which.max(colMeans(opt_models[metric == "R2" | estimate == "R
 cat(sprintf("Optimal number of components - PRESS: %d, RMSEP: %d, R2: %d\n", n_components_PRESS, n_components_RMSEP, n_components_R2))
 
 # Manual selection
-ncomp <- 14
+ncomp <- 15
 abline(v = ncomp, col = "red")
 
 # Export for record and figures

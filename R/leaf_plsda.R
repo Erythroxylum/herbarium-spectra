@@ -29,8 +29,6 @@ source("auxiliary/model_tune_plsda.R")
 source("auxiliary/model_build_classification.R")
 source("auxiliary/model_performance_classification.R")
 source("auxiliary/confusion_matrices_dw.R")
-#source("auxiliary/pls_coefficients.R")
-#source("auxiliary/pls_vip.R")
 
 #'------------------------------------------------------------------------------
 #' @Working_directory
@@ -38,7 +36,9 @@ source("auxiliary/confusion_matrices_dw.R")
 
 # Select the root_folder to read data and export results
 
+#JAG
 root_path <- "C:/Users/jog4076/Downloads"
+#DW
 root_path <- getwd()
 
 #'------------------------------------------------------------------------------
@@ -48,7 +48,6 @@ root_path <- getwd()
 # Select the file of interest
 frame <- fread(paste0(root_path,
                       "/fullDataHUH2024_sp25leaf636_noResample_400-2300.csv")) 
-frame <- fread("../fullDataHUH2024_sp25leaf636_noResample_400-2300.csv") 
 frame <- frame[!is.na(leafKg_m2),]
 
 #-------------------------------------------------------------------------------
@@ -184,7 +183,7 @@ performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ]
                                                      spectra_split = spectra[!split, ],
                                                      models = models_plsda,
                                                      ncomp = ncomp,
-                                                     threads = 2)
+                                                     threads = 1)
 
 performance_lda_training <- model_performance_lda(meta_split = meta[split, ],
                                                   species_split = species[split], 

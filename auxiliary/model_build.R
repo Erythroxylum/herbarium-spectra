@@ -21,12 +21,15 @@ model_build <- function(meta,
   build <- function(X, 
                     split, 
                     segments,
+                    meta_split,
                     frame,
                     ncomp) {
     
     # Get samples from segments to train
     get_segments <- split %in% segments[[X]]
+    meta_segments <- meta_split[get_segments,]
     sub_frame <- frame[get_segments,]
+    kfolds <- data_folds(meta_segments$species, k = 10)
     
     # Perform model
     ml_model <- plsr(trait ~ ., 
@@ -35,9 +38,8 @@ model_build <- function(meta,
                      ncomp = ncomp,
                      center = TRUE,
                      method = "oscorespls",
-                     maxit = 10000)
-    
-    
+                     maxit = 10000,
+                     segments = kfolds)
     
     return(ml_model)
     
@@ -46,6 +48,7 @@ model_build <- function(meta,
   # Parallel processing
   complete <- pbmclapply(X = 1:length(segments), 
                          FUN = build, 
+                         meta_split = meta_split,
                          split = split, 
                          segments = segments,
                          frame = frame,
