@@ -28,7 +28,7 @@ source("auxiliary/folds.R")
 source("auxiliary/model_tune_plsda.R")
 source("auxiliary/model_build_classification.R")
 source("auxiliary/model_performance_classification.R")
-source("auxiliary/confusionMatrices.R")
+source("auxiliary/confusion_matrices_dw.R")
 
 #'------------------------------------------------------------------------------
 #' @Working_directory
@@ -36,7 +36,9 @@ source("auxiliary/confusionMatrices.R")
 
 # Select the root_folder to read data and export results
 
+#JAG
 root_path <- "C:/Users/jog4076/Downloads"
+#DW
 root_path <- getwd()
 
 #'------------------------------------------------------------------------------
@@ -69,7 +71,7 @@ spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
 #' @Data-split
 #-------------------------------------------------------------------------------
 
-# Get rows for training
+# Select the number of specimens per species to include in training
 split <- data_split(meta = meta)
 
 # Export for record
@@ -80,7 +82,8 @@ saveRDS(split, paste0(root_path, "/classification_split.rds"))
 #-------------------------------------------------------------------------------
 
 # Select a spectral measurement per specimen
-iterations <- 5 # 1000
+iterations <- 3 # 1000
+
 segments <- pbmclapply(X = 1:iterations,
                        FUN = data_segments,
                        meta = meta,
@@ -110,7 +113,7 @@ opt_models <- model_tune_plsda(meta = meta,
                                threads = 2) # If windows = 1, mac 2 same as 6
 
 # Plot Accuracy
-pdf("../herbarium_spectra_results/ncomp_accuracy.pdf", width = 4, height = 3) 
+pdf("../herbarium_spectra_results/ncomp_accuracy.pdf", width = 5, height = 5) 
 # Select the optimal based on the accuracy
 plot(x = 1:ncomp_max,
      y = colMeans(opt_models[metric == "Accuracy", 4:ncol(opt_models)]),
@@ -172,11 +175,11 @@ performance_plsda_training <- model_performance_plsda(meta_split = meta[split, ]
                                                       ncomp = ncomp,
                                                       threads = 2)
 
-#generate anti-split numeric vector for species
-anti_split <- setdiff(1:length(species), split)
+#generate inverse of numeric vector for species split
+inverse_split <- setdiff(1:length(species), split)
 
 performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ],
-                                                     species_split = species[!split], 
+                                                     species_split = species[inverse_split], 
                                                      spectra_split = spectra[!split, ],
                                                      models = models_plsda,
                                                      ncomp = ncomp,
@@ -189,37 +192,50 @@ performance_lda_training <- model_performance_lda(meta_split = meta[split, ],
                                                   threads = 2)
 
 performance_lda_testing <- model_performance_lda(meta_split = meta[!split, ],
-                                                  species_split = species[anti_split], 
+                                                  species_split = species[inverse_split], 
                                                   spectra_split = spectra[!split, ],
                                                   models = models_lda,
                                                   threads = 2)
+
+# Export for record
+saveRDS(performance_plsda_training, paste0(root_path, "/performance_plsda_training.rds"))
+saveRDS(performance_plsda_testing, paste0(root_path, "/performance_plsda_testing.rds"))
+saveRDS(performance_lda_training, paste0(root_path, "/performance_lda_training.rds"))
+saveRDS(performance_lda_testing, paste0(root_path, "/performance_lda_testing.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Confusion-Matrices
 #-------------------------------------------------------------------------------
 
-CM_plsda_training <- confusionMatrices_plsda(meta_split = meta[split,],
+CM_plsda_training <- confusion_matrices_plsda_dw(meta_split = meta[split,],
                                              species_split = species[split], 
                                              spectra_split = spectra[split, ],
                                              models = models_plsda,
                                              ncomp = ncomp,
                                              threads = 1)
 
-CM_plsda_testing <- confusionMatrices_plsda(meta_split = meta[!split,],
-                                            species_split = species[anti_split], 
+CM_plsda_testing <- confusion_matrices_plsda_dw(meta_split = meta[!split,],
+                                            species_split = species[inverse_split], 
                                             spectra_split = spectra[!split, ],
                                             models = models_plsda,
                                             ncomp = ncomp,
                                             threads = 1)
 
-CM_lda_training <- confusionMatrices_lda(meta_split = meta[split,],
+CM_lda_training <- confusion_matrices_lda_dw(meta_split = meta[split,],
                                          species_split = species[split], 
                                          spectra_split = spectra[split, ],
                                          models = models_lda,
                                          threads = 1)
 
-CM_lda_testing <- confusionMatrices_lda(meta_split = meta[!split,],
-                                        species_split = species[anti_split], 
+CM_lda_testing <- confusion_matrices_lda_dw(meta_split = meta[!split,],
+                                        species_split = species[inverse_split], 
                                         spectra_split = spectra[!split, ],
                                         models = models_lda,
                                         threads = 1)
+
+# Export
+saveRDS(CM_plsda_training, paste0(root_path, "/CM_plsda_training.rds"))
+saveRDS(CM_plsda_testing, paste0(root_path, "/CM_plsda_testing.rds"))
+saveRDS(CM_lda_training, paste0(root_path, "/CM_lda_training.rds"))
+saveRDS(CM_lda_testing, paste0(root_path, "/CM_lda_testing.rds"))
+
