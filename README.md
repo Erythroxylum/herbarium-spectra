@@ -3,7 +3,17 @@ Datasets and scripts for the **NPH paper**.
 
 ---
 
-## Data processing
+## Data 
+
+Download Herbarium data here : https://drive.google.com/file/d/13kj_C4orE9QcR-01rbUHxUpX5ggX834J/view?usp=sharing
+
+Download Kothari data here : https://drive.google.com/file/d/1MZBkpfeeSVQshd2gUXTuV-0XJbV3VWTb/view?usp=drive_link
+
+- these are normalized, 5nm resampled spectra
+  
+---
+
+## Data processing (completed by Dawson)
 **`R/Spectrolab_process_data.R`**
 
 Script for combining spectra and metadata files and manipulating spectra for output to analysis scripts.
