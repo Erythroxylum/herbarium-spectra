@@ -9,7 +9,9 @@ Download Herbarium data here : https://drive.google.com/file/d/13kj_C4orE9QcR-01
 
 Download Kothari data here : https://drive.google.com/file/d/1MZBkpfeeSVQshd2gUXTuV-0XJbV3VWTb/view?usp=drive_link
 
-- these are normalized, 5nm resampled spectra
+These are normalized, 5nm resampled spectra
+
+**`plotting/plotting_functions_spectra.R`** Plot means, quartiles, coefficient of variation of spectra.
   
 ---
 
@@ -17,8 +19,6 @@ Download Kothari data here : https://drive.google.com/file/d/1MZBkpfeeSVQshd2gUX
 **`R/Spectrolab_process_data.R`**
 
 Script for combining spectra and metadata files and manipulating spectra for output to analysis scripts.
-
-- **`plotting/plotting_functions_spectra.R`** Plot means, quartiles, coefficient of variation of spectra.
   
 ---
 
