@@ -29,7 +29,7 @@ model_build <- function(meta,
     get_segments <- split %in% segments[[X]]
     meta_segments <- meta_split[get_segments,]
     sub_frame <- frame[get_segments,]
-    kfolds <- data_folds(meta_segments$species, k = 10)
+    #kfolds <- data_folds(meta_segments$species, k = 10)
     
     # Perform model
     ml_model <- plsr(trait ~ ., 
@@ -39,7 +39,7 @@ model_build <- function(meta,
                      center = TRUE,
                      method = "oscorespls",
                      maxit = 10000,
-                     segments = kfolds)
+                     segments = 10) # was kfolds for balanced sampling
     
     return(ml_model)
     

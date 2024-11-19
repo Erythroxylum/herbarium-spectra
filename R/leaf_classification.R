@@ -17,18 +17,20 @@ library(caret)
 library(plsVarSel)
 library(parallel)
 library(pbmcapply)
+library(plsVarSel)
 
 #'------------------------------------------------------------------------------
 #' @Source_code
 #-------------------------------------------------------------------------------
 # for DW MBP, setwd()
-source("auxiliary/data_split.R")
+source("auxiliary/data_split_balanced.R")
 source("auxiliary/data_segments.R")
-source("auxiliary/folds.R")
 source("auxiliary/model_tune_plsda.R")
 source("auxiliary/model_build_classification.R")
 source("auxiliary/model_performance_classification.R")
-source("auxiliary/confusion_matrices_dw.R")
+source("auxiliary/confusion_matrices.R")
+source("auxiliary/plsda_varImp.R")
+source("auxiliary/lda_varImp.R")
 
 #'------------------------------------------------------------------------------
 #' @Working_directory
@@ -37,18 +39,23 @@ source("auxiliary/confusion_matrices_dw.R")
 # Select the root_folder to read data and export results
 
 #JAG
-root_path <- "C:/Users/jog4076/Downloads"
+#root_path <- "C:/Users/jog4076/Downloads"
 #DW
-root_path <- getwd()
+root_path <- "/n/netscratch/davis_lab/Everyone/dwhite/herbarium-spectra"
 
 #'------------------------------------------------------------------------------
 #' @Read-Information
 #-------------------------------------------------------------------------------
 
 # Select the file of interest
-frame <- fread(paste0(root_path,
-                      "/fullDataHUH2024_sp25leaf636_noResample_400-2300.csv")) 
+frame <- fread("../dataHUH2024_sp25leaf563_norm_5nm_400-2400.csv")
+frame <- fread("../dataKothari_pressed_unavg_norm_5nm_400-2400.csv")
 frame <- frame[!is.na(leafKg_m2),]
+
+#species_vector <- c("Quercus rubra", "Populus tremuloiddes", "Populus grandidentata", "Fagus grandifolia", "Betula populifolia", "Betula papyrifera", "Agonis flexuosa", "Acer saccharum", "Acer saccharinum", "Acer rubrum")
+
+# Subset the data.table based on the species vector
+#frame <- frame[species %in% species_vector]
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape
@@ -57,15 +64,17 @@ frame <- frame[!is.na(leafKg_m2),]
 # Get files from meta data, traits, and spectra.
 
 meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","species",
+                  "genus","family","class","order",
                   "ddmmyyScanned", "absoluteAge", "herbQuality",
                   "damage", "glue", "leafStage", "greenIndex")]
 
 meta$sample <- 1:nrow(meta)
 
-species <- frame$species
+species <- frame$genus
 species <- sub(" ", "_", species)
 
 spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
+
 
 #-------------------------------------------------------------------------------
 #' @Data-split
@@ -110,35 +119,39 @@ opt_models <- model_tune_plsda(meta = meta,
                                species = species,
                                spectra = spectra,
                                ncomp_max = ncomp_max,
-                               threads = 2) # If windows = 1, mac 2 same as 6
+                               threads = 4) # If windows = 1, mac 2 same as 6
 
-# Plot Accuracy
-pdf("../herbarium_spectra_results/ncomp_accuracy.pdf", width = 5, height = 5) 
-# Select the optimal based on the accuracy
-plot(x = 1:ncomp_max,
-     y = colMeans(opt_models[metric == "Accuracy", 4:ncol(opt_models)]),
-     xlab = "Number of components",
-     ylab = "Accuracy") # was PRESS
-# Calculate mean accuracy for each component
-mean_accuracy <- colMeans(opt_models[metric == "Accuracy", 4:ncol(opt_models)])
-# Identify the component with the highest mean accuracy
-ncomp <- which.max(mean_accuracy)
-max_accuracy <- mean_accuracy[ncomp]
-# Add a point and annotate the highest accuracy point
-points(ncomp, max_accuracy, col = "red", pch = 19, cex = 1.2)
-text(ncomp, max_accuracy, labels = paste("Max Acc.:", round(max_accuracy, 2)),
-     pos = 1, offset = 2, col = "red")
-text(ncomp, max_accuracy, labels = paste("N comp.:", ncomp),
-     pos = 1, offset = 3, col = "red")
-# Close the PDF device to save the file
-dev.off()
 
-# Manual selection
-#ncomp <- 35
-#abline(v = ncomp, col = "red")
+# Filter for accuracy and accuracy SD metrics
+accuracy_data <- opt_models[metric == "Accuracy", 4:ncol(opt_models)]
+accuracy_sd_data <- opt_models[metric == "AccuracySD", 4:ncol(opt_models)]
+
+# Calculate the mean accuracy and mean accuracy SD across iterations
+mean_accuracy <- colMeans(accuracy_data, na.rm = TRUE)
+mean_accuracy_sd <- colMeans(accuracy_sd_data, na.rm = TRUE)
+
+# Find the component with the highest mean accuracy
+max_accuracy <- max(mean_accuracy, na.rm = TRUE)
+max_accuracy_component <- which.max(mean_accuracy)
+
+# Calculate the threshold: highest mean accuracy minus one standard deviation
+accuracy_threshold <- max_accuracy - mean_accuracy_sd[max_accuracy_component]
+
+# Identify the lowest component within one SD of the highest accuracy
+ncomp <- as.integer(which(mean_accuracy >= accuracy_threshold)[1])
+
+# Print ncomp summary
+cat(
+  "The highest mean accuracy:", max_accuracy, "at component", max_accuracy_component, "\n",
+  "Optimal component accuracy within one SD:", accuracy_threshold, "at component", ncomp, "\n",
+  file = "classification_plsda_ncomp.txt", append = TRUE
+)
+
+# Identify the lowest component within one SD of the highest accuracy
+ncomp <- as.integer(which.max(mean_accuracy))
 
 # Export for record and figures
-fwrite(opt_models, paste0(root_path, "/opt_comp_models.csv"))
+fwrite(opt_models, paste0(root_path, "/classification_plsda_opt_comp_models.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Final_model for prediction
@@ -151,7 +164,7 @@ models_plsda <- model_build_plsda(meta = meta,
                                   species = species,
                                   spectra = spectra,
                                   ncomp = ncomp,
-                                  threads = 2) # If windows = 1
+                                  threads = 6) # If windows = 1
 
 # Based on LDA
 models_lda <- model_build_lda(meta = meta,
@@ -161,6 +174,9 @@ models_lda <- model_build_lda(meta = meta,
                               spectra = spectra,
                               threads = 2) # If windows = 1
 
+# save models
+saveRDS(models_plsda, "classification_plsda_models.rds")
+saveRDS(models_lda, "classification_lda_models.rds")
 
 #-------------------------------------------------------------------------------
 #' @Performance-training
@@ -183,7 +199,7 @@ performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ]
                                                      spectra_split = spectra[!split, ],
                                                      models = models_plsda,
                                                      ncomp = ncomp,
-                                                     threads = 1)
+                                                     threads = 2)
 
 performance_lda_training <- model_performance_lda(meta_split = meta[split, ],
                                                   species_split = species[split], 
@@ -204,6 +220,32 @@ saveRDS(performance_lda_training, paste0(root_path, "/performance_lda_training.r
 saveRDS(performance_lda_testing, paste0(root_path, "/performance_lda_testing.rds"))
 
 #-------------------------------------------------------------------------------
+#' @Model_coefficients
+#-------------------------------------------------------------------------------
+
+## BAD
+coefficients_plsda <- pls_coefficients(models = models_plsda)
+
+coefficients_lda <- pls_coefficients(models = models_lda,
+                                 ncomp = ncomp)
+
+fwrite(coefficients_plsda, paste0(root_path, "/classification_plsda_coefficients.csv"))
+fwrite(coefficients_plsda, paste0(root_path, "/classification_lda_coefficients.csv"))
+
+#-------------------------------------------------------------------------------
+#' @Model_VIP
+#-------------------------------------------------------------------------------
+
+vip_plsda <- plsda_varImp(models = models_plsda)
+
+fwrite(vip, paste0(root_path, "/classification_plsda_varImp.csv"))
+
+vip_lda <- lda_varImp(models = models_lda)
+
+fwrite(vip, paste0(root_path, "/classification_lda_varImp.csv"))
+
+
+#-------------------------------------------------------------------------------
 #' @Confusion-Matrices
 #-------------------------------------------------------------------------------
 
@@ -212,26 +254,26 @@ CM_plsda_training <- confusion_matrices_plsda_dw(meta_split = meta[split,],
                                              spectra_split = spectra[split, ],
                                              models = models_plsda,
                                              ncomp = ncomp,
-                                             threads = 1)
+                                             threads = 2)
 
 CM_plsda_testing <- confusion_matrices_plsda_dw(meta_split = meta[!split,],
                                             species_split = species[inverse_split], 
                                             spectra_split = spectra[!split, ],
                                             models = models_plsda,
                                             ncomp = ncomp,
-                                            threads = 1)
+                                            threads = 2)
 
 CM_lda_training <- confusion_matrices_lda_dw(meta_split = meta[split,],
                                          species_split = species[split], 
                                          spectra_split = spectra[split, ],
                                          models = models_lda,
-                                         threads = 1)
+                                         threads = 2)
 
 CM_lda_testing <- confusion_matrices_lda_dw(meta_split = meta[!split,],
                                         species_split = species[inverse_split], 
                                         spectra_split = spectra[!split, ],
                                         models = models_lda,
-                                        threads = 1)
+                                        threads = 2)
 
 # Export
 saveRDS(CM_plsda_training, paste0(root_path, "/CM_plsda_training.rds"))

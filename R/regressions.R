@@ -23,7 +23,7 @@ library(tidyr)
 #'------------------------------------------------------------------------------
 #' @Working_directory
 #-------------------------------------------------------------------------------
-setwd("/Users/dawsonwhite/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/herbarium-spectra")
+setwd("/Users/dawsonwhite/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/results/LDA/")
 
 # Select the root_folder to read data and export results
 root_path <- "C:/Users/jog4076/Downloads"
@@ -63,7 +63,7 @@ spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
 
 ##########################################################
 ## Load PLSDA model
-models_plsda_regression <- readRDS("../herbarium_spectra_results/leaf_plsdav1/models_plsda.rds")
+models_plsda_regression <- readRDS("../leaf_plsdav1/models_plsda.rds")
 
 ## Apply the trained model to predict probabilities and class labels
 plsProbs_all <- predict(models_plsda_regression[1], newdata = as.matrix(spectra), type = "prob")[[1]]  # First element in list
@@ -390,9 +390,27 @@ importance_data <- importance_data[, c("Variable", "MeanDecreaseAccuracy", "Mean
 write.csv(importance_data, file = "../herbarium_spectra_results/leaf_plsdav1/variable_importance_rf.csv", row.names = FALSE)
 
 
+#'------------------------------------------------------------------------------
+#' @Age-vs-GreenIndex
+#-------------------------------------------------------------------------------
 
+plot(frame$absoluteAge, frame$greenIndex,
+     main = "Linear Regression of Green Index vs. Absolute Age",
+     xlab = "Absolute Age",
+     ylab = "Green Index",
+     pch = 16,              # Set point shape
+     col = "blue")          # Set point color
 
+# Add a linear regression line
+abline(lm(greenIndex ~ absoluteAge, data = frame), col = "red", lwd = 2)
 
+# Optional: Add regression line equation and R-squared to the plot
+model <- lm(greenIndex ~ absoluteAge, data = frame)
+eq <- substitute(italic(y) == a + b %.% italic(x) * "," ~~ italic(R)^2 ~ "=" ~ r2, 
+                 list(a = format(coef(model)[1], digits = 2), 
+                      b = format(coef(model)[2], digits = 2), 
+                      r2 = format(summary(model)$r.squared, digits = 3)))
+mtext(as.expression(eq), 3, line = -1.5, col="red")
 
 
 

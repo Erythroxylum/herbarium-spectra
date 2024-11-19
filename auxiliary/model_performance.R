@@ -85,7 +85,7 @@ model_performance <- function(meta_split,
   predicted_sd <- apply(predicted, 1, sd)
   
   # All together 
-  predicted_summary <- meta_split[, c("accession", "leaf", "scan", "sample")]
+  predicted_summary <- meta_split[, c("species", "accession", "leaf", "scan", "sample", "absoluteAge", "herbQuality", "damage", "glue", "leafStage", "greenIndex")]
   predicted_summary$observed <- frame$trait
   predicted_summary$predicted_mean <- predicted_mean
   predicted_summary$predicted_sd <- predicted_sd
@@ -112,7 +112,7 @@ parameters <- function(obs, pred) {
   slope <- linear_summary$coefficients[2,1]
   BIAS <- mean(obs-pred, na.rm = TRUE)
   RMSE <- sqrt(sum(((obs-pred)^2))/length(obs))
-  perRMSE <- sqrt(sum(((obs-pred)^2))/length(obs))/(quantile(obs, 0.99) - quantile(obs, 0.01))
+  perRMSE <- sqrt(sum(((obs-pred)^2))/length(obs))/(quantile(obs, 0.99, na.rm = TRUE) - quantile(obs, 0.01, na.rm = TRUE))
   names(perRMSE) <- NULL
   
   

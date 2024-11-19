@@ -18,10 +18,16 @@ library(reshape2)
 #' @Plot-Confusion-Matrices
 #-------------------------------------------------------------------------------
 
+setwd("/Users/dawsonwhite/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/results/LDA")
+setwd("/Users/dawsonwhite/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/results/PLSDA/")
+
+
 # Load data
-CM_data <- CM_plsda_testing
+CM_data <- readRDS("CM_lda_testing_sp10.rds")
+CM_data <- readRDS("plsda_CM_plsda_training_family.rds")
+
 # set data name for plot header
-file_name <- deparse(substitute(CM_plsda_testing))
+file_name <- "CM_lda_testing_sp10"
 
 # Extract mean matrix Melt the confusion matrix to long format
 conf_mean_long <- melt(CM_data$mean_confusion_matrix, id.vars = "Reference", variable.name = "Prediction", value.name = "Mean")
@@ -56,7 +62,7 @@ cm_plot <- ggplot(data = conf_mean_long, aes(x = Prediction, y = Reference, fill
 cm_plot
 
 # Save the plot
-ggsave(paste(file_name, ".pdf", sep=""), plot = cm_plot, width = 7.5, height = 7.5)
+ggsave(paste(file_name, ".pdf", sep=""), plot = cm_plot, width = 6, height = 6)
 
 
 
