@@ -37,26 +37,6 @@ model_performance <- function(meta_split,
   
   #----------------------------------------------------------------------------- 
   # Evaluate performance
-  application_performance <- function(X,
-                                      meta_split,
-                                      trait_observed,
-                                      predicted) {
-    
-    # Ave
-    ave <- data.table(accession = meta_split$accession,
-                      trait_observed = trait_observed,
-                      predicted = predicted[[X]])
-    ave <- ave[, .(mean(trait_observed), mean(predicted)), 
-               by = "accession"]
-    colnames(ave) <- c("accession", "trait_observed", "predicted")
-    
-    # Performance at the Axes level
-    per <- parameters(obs = ave$trait_observed, 
-                      pred = ave$predicted)
-    
-    return(per)
-    
-  }
   
   # Performance in parallel
   performance <- pbmclapply(X = 1:length(models),
@@ -108,6 +88,29 @@ model_performance <- function(meta_split,
   # Return results
   return(list(performance = performance,
               predicted = predicted_summary))
+}
+
+# ------------------------------------------------------------------------------
+# Application performance
+application_performance <- function(X,
+                                    meta_split,
+                                    trait_observed,
+                                    predicted) {
+  
+  # Ave
+  ave <- data.table(accession = meta_split$accession,
+                    trait_observed = trait_observed,
+                    predicted = predicted[[X]])
+  ave <- ave[, .(mean(trait_observed), mean(predicted)), 
+             by = "accession"]
+  colnames(ave) <- c("accession", "trait_observed", "predicted")
+  
+  # Performance at the Axes level
+  per <- parameters(obs = ave$trait_observed, 
+                    pred = ave$predicted)
+  
+  return(per)
+  
 }
 
 #-------------------------------------------------------------------------------
