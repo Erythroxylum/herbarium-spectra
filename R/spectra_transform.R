@@ -50,6 +50,9 @@ spectra_resampled <- spectra_resampled[, .SD, .SDcols = 3:(ncol(spectra_resample
 plot(as.numeric(colnames(spectra_resampled)), 
      as.matrix(spectra_resampled[50,])[1,])
 
+fwrite(cbind(meta, spectra_resampled), 
+       paste0(root_path, "/data/dataHUH2024_sp25leaf563_ref_400-2400.csv"))
+
 # Transform spectra
 spectra_transformed <- cwt(t = spectra_resampled, 
                            scales = c(2, 3, 4), 
@@ -102,7 +105,10 @@ plot(as.numeric(colnames(spectra_resampled)),
 spectra_resampled <- spectra_resampled[, .SD, .SDcols = 3:(ncol(spectra_resampled)-2)]
 
 plot(as.numeric(colnames(spectra_resampled)), 
-     as.matrix(spectra_resampled[50,])[1,])
+     as.matrix(spectra_resampled[6,])[1,])
+
+fwrite(cbind(meta, spectra_resampled), 
+       paste0(root_path, "/data/dataKothari_pressed_unavg_ref_400-2400.csv"))
 
 # Transform spectra
 spectra_transformed <- cwt(t = spectra_resampled, 

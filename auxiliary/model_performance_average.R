@@ -107,8 +107,7 @@ model_performance <- function(meta_split,
   #----------------------------------------------------------------------------- 
   # Return results
   return(list(performance = performance,
-              predicted = predicted_summary,
-              predicted_by_accession = predicted_summary_avg))
+              predicted = predicted_summary))
 }
 
 #-------------------------------------------------------------------------------
@@ -127,7 +126,8 @@ parameters <- function(obs, pred) {
   names(perRMSE) <- NULL
   
   
-  return(round(data.table(R2 = R2,
+  return(round(data.table(n = length(obs),
+                          R2 = R2,
                           BIAS = BIAS,
                           RMSE = RMSE,
                           perRMSE = perRMSE,

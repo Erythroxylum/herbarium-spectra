@@ -4,13 +4,13 @@
 # Function for data split based on growth form and accession
 data_split <- function(meta, p = 0.75) {
   
-  unique_growthforms <- unique(meta$GrowthForm)
+  unique_growthforms <- unique(meta$growthForm)
   collector <- numeric()
   
   for (gf in unique_growthforms) {
     
     # Subset metadata for the current GrowthForm
-    sub_meta <- subset(meta, GrowthForm == gf)
+    sub_meta <- subset(meta, growthForm == gf)
     
     # Determine unique accessions and the number to include in the training set
     unique_accessions <- unique(sub_meta$accession)

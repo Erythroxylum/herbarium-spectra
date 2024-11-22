@@ -47,7 +47,10 @@ root_path <- getwd()
 source <- "Kothari" #Kothari or HUH
 
 # Define bands of interest
-bands <- seq(450, 2400, by = 5)
+# bands <- seq(450, 2400, by = 5)
+# bands <- seq(1350, 2400, by = 5)
+# bands <- seq(450, 1300, by = 5)
+bands <- seq(680, 900, by = 5)
 
 # Define out_path of results
 out_path <- paste0(root_path, "/results/", source, "/", source, "_", min(bands), "-", max(bands))
@@ -56,7 +59,8 @@ dir.create(out_path, recursive = TRUE)
 if(source == "HUH") {
   
   # HUH
-  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_cwt_450-2400.csv"))
+  # frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_cwt_450-2400.csv")) #CWT
+  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_ref_400-2400.csv")) #ref
   frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
@@ -76,12 +80,13 @@ if(source == "HUH") {
 } else if(source == "Kothari") {
   
   # Kothari
-  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt_450-2400.csv"))
+  # frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt_450-2400.csv")) #CWT
+  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref_400-2400.csv")) #ref
   frame <- frame[!is.na(leafKg_m2),]
   
   # Kothari meta
   meta <- frame[, c("name", "accession", "Species", "LatinGenus", "LatinSpecies", 
-                    "Project", "Discoloration", "Stage", "GrowthForm", "Latitude", "Longitude",
+                    "Project", "Discoloration", "Stage", "growthForm", "Latitude", "Longitude",
                     "species", "sp10", "greenIndex")]
   #meta <- meta[sp10 == TRUE,]
   meta$sample <- 1:nrow(meta)
@@ -106,27 +111,31 @@ if(source == "HUH") {
 #' @Data-split
 #-------------------------------------------------------------------------------
 
-# Get rows for training 
-split <- data_split(meta = meta)
+#' # Get rows for training
+#' split <- data_split(meta = meta, p = 0.7)
+#' 
+#' # Export for record
+#' saveRDS(split, paste0(out_path, "/pls_", source, "_split.rds"))
 
-# Export for record
-saveRDS(split, paste0(out_path, "/pls_", source, "_split.rds"))
+split <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_split.rds"))
 
-#-------------------------------------------------------------------------------
-#' @Segments
-#-------------------------------------------------------------------------------
+#' #-------------------------------------------------------------------------------
+#' #' @Segments
+#' #-------------------------------------------------------------------------------
+#' 
+#' # Select a spectral measurement per specimen
+#' iterations <- 100
+#' segments <- pbmclapply(X = 1:iterations,
+#'                        FUN = data_segments,
+#'                        meta = meta,
+#'                        split = split,
+#'                        mc.set.seed = TRUE,
+#'                        mc.cores = 25) # If windows = 1
+#' 
+#' # Export for record
+#' saveRDS(segments, paste0(out_path, "/pls_", source, "_segments.rds"))
 
-# Select a spectral measurement per specimen
-iterations <- 100
-segments <- pbmclapply(X = 1:iterations,
-                       FUN = data_segments,
-                       meta = meta,
-                       split = split,
-                       mc.set.seed = TRUE,
-                       mc.cores = 25) # If windows = 1
-
-# Export for record
-saveRDS(segments, paste0(out_path, "/pls", source, "_segments.rds"))
+segments <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_segments.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Model_tune
@@ -172,10 +181,12 @@ plot(x = 1:30,
      ylab = "RMSEP")
 dev.off()
 
+# Manually select ncomp
+ncomp <- 14
+
 # Export csv of statistics for record and figures
 fwrite(opt_models, paste0(out_path, "/pls_", source, "_opt_comp_models.csv"))
-
-ncomp <- 7
+fwrite(data.table(ncomp = ncomp), paste0(out_path, "/", source, "_opt_comp.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Final_model for prediction
@@ -206,7 +217,6 @@ training_performance <- model_performance(meta_split = meta[split,],
 # Export
 fwrite(training_performance$performance, paste0(out_path, "/pls_", source, "_training_performance.csv"))
 fwrite(training_performance$predicted, paste0(out_path, "/pls_", source, "_training_obs-pred.csv"))
-fwrite(training_performance$predicted_by_accession, paste0(out_path, "/pls_", source, "_training_obs-pred-avg.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Performance-testing
@@ -222,7 +232,6 @@ testing_performance <- model_performance(meta_split = meta[!split,],
 # Export
 fwrite(testing_performance$performance, paste0(out_path, "/pls_", source, "_testing_performance.csv"))
 fwrite(testing_performance$predicted, paste0(out_path, "/pls_", source, "_testing_obs-pred.csv"))
-fwrite(testing_performance$predicted_by_accession, paste0(out_path, "/pls_", source, "_testing_obs-pred-avg.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Model_coefficients
