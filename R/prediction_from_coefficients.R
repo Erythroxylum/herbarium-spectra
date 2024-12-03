@@ -27,31 +27,33 @@ source("auxiliary/model_performance_average.R")
 
 # Antonio
 root_path <- getwd()
-results <- paste0(root_path, "/results/ref")
+results <- paste0(root_path, "/results")
 
 #'------------------------------------------------------------------------------
 #' @Read-Information_Reshape
 #-------------------------------------------------------------------------------
 
 # Define bands of interest
-# bands <- seq(450, 2400, by = 5)
+bands <- seq(450, 2400, by = 5)
 # bands <- seq(1350, 2400, by = 5)
 # bands <- seq(450, 1300, by = 5)
-bands <- seq(680, 900, by = 5)
+#bands <- seq(680, 900, by = 5)
+
+# remove sensor overlap region
+bands <- bands[!(bands >= 980 & bands <= 1000)]
 
 # Define source
-coef_source <- "HUH" #Kothari or HUH
-spectra_source <- "Kothari" #Kothari or HUH
+coef_source <- "Kothari" #Kothari or HUH
+spectra_source <- "HUH" #Kothari or HUH
 
 # Define out_path of results
-out_path <- paste0(root_path, "/results/ref/model_transfer/From_", coef_source, "_to_", spectra_source, 
-                   "_", min(bands), "-", max(bands))
+out_path <- paste0(root_path, "/results/model_transfer/From_", coef_source, "_to_", spectra_source, "_", min(bands), "-", max(bands))
 dir.create(out_path, recursive = TRUE)
 
 # ------------------------------------------------------------------------------
 ### Read coefficients
 
-coef <- fread(paste0(root_path, "/results/ref/", 
+coef <- fread(paste0(root_path, "/results/", 
                      coef_source, "/", coef_source, "_", min(bands), "-", max(bands),
                      "/pls_", coef_source, "_coefficients.csv"))
 colnames(coef) <- gsub("`", "", colnames(coef))
@@ -62,8 +64,8 @@ colnames(coef) <- gsub("`", "", colnames(coef))
 if(spectra_source == "HUH") {
   
   # HUH
-  # frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_cwt_450-2400.csv")) #CWT
-  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_ref_400-2400.csv")) #ref
+  # frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_cwt5nm_450-2400.csv")) #CWT
+  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_ref5nm_450-2400.csv")) #ref
   frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
@@ -83,8 +85,8 @@ if(spectra_source == "HUH") {
 } else if(spectra_source == "Kothari") {
   
   # Kothari
-  # frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt_450-2400.csv")) #CWT
-  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref_400-2400.csv")) #ref
+  # frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv")) #CWT
+  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv")) #ref
   frame <- frame[!is.na(leafKg_m2),]
   
   # Kothari meta
@@ -128,7 +130,7 @@ performance <- pbmclapply(X = 1:nrow(coef),
                           predicted = trait_predicted,
                           mc.preschedule = TRUE, 
                           mc.set.seed = FALSE,
-                          mc.cores = 25,
+                          mc.cores = 2,
                           mc.cleanup = TRUE)
 
 # Make it a frame

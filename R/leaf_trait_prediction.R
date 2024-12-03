@@ -47,10 +47,13 @@ root_path <- getwd()
 source <- "Kothari" #Kothari or HUH
 
 # Define bands of interest
-# bands <- seq(450, 2400, by = 5)
+bands <- seq(450, 2400, by = 5)
 # bands <- seq(1350, 2400, by = 5)
 # bands <- seq(450, 1300, by = 5)
-bands <- seq(680, 900, by = 5)
+# bands <- seq(680, 900, by = 5)
+
+# remove sensor overlap region
+bands <- bands[!(bands >= 980 & bands <= 1000)]
 
 # Define out_path of results
 out_path <- paste0(root_path, "/results/", source, "/", source, "_", min(bands), "-", max(bands))
@@ -60,7 +63,7 @@ if(source == "HUH") {
   
   # HUH
   # frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_cwt_450-2400.csv")) #CWT
-  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_ref_400-2400.csv")) #ref
+  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_ref5nm_450-2400.csv")) #ref
   frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
@@ -80,8 +83,8 @@ if(source == "HUH") {
 } else if(source == "Kothari") {
   
   # Kothari
-  # frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt_450-2400.csv")) #CWT
-  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref_400-2400.csv")) #ref
+  # frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv")) #CWT
+  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv")) #ref
   frame <- frame[!is.na(leafKg_m2),]
   
   # Kothari meta
@@ -111,38 +114,42 @@ if(source == "HUH") {
 #' @Data-split
 #-------------------------------------------------------------------------------
 
+# Run this ONCE, then load for cwt and normalization comparison
 #' # Get rows for training
-#' split <- data_split(meta = meta, p = 0.7)
+split <- data_split(meta = meta, p = 0.7)
 #' 
 #' # Export for record
-#' saveRDS(split, paste0(out_path, "/pls_", source, "_split.rds"))
+saveRDS(split, paste0(out_path, "/pls_", source, "_split.rds"))
 
-split <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_split.rds"))
+# reload for CWT
+split <- readRDS(paste0(out_path, "/pls_", source, "_split.rds"))
 
 #' #-------------------------------------------------------------------------------
 #' #' @Segments
 #' #-------------------------------------------------------------------------------
 #' 
-#' # Select a spectral measurement per specimen
-#' iterations <- 100
-#' segments <- pbmclapply(X = 1:iterations,
-#'                        FUN = data_segments,
-#'                        meta = meta,
-#'                        split = split,
-#'                        mc.set.seed = TRUE,
-#'                        mc.cores = 25) # If windows = 1
-#' 
+#' # Run this ONCE, then load for cwt and normalization comparison
+# Select a spectral measurement per specimen
+iterations <- 100
+segments <- pbmclapply(X = 1:iterations,
+                        FUN = data_segments,
+                        meta = meta,
+                        split = split,
+                        mc.set.seed = TRUE,
+                        mc.cores = 2) # If windows = 1
+ 
 #' # Export for record
-#' saveRDS(segments, paste0(out_path, "/pls_", source, "_segments.rds"))
+saveRDS(segments, paste0(out_path, "/pls_", source, "_segments.rds"))
 
-segments <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_segments.rds"))
+# reload for CWT
+segments <- readRDS(paste0(out_path, "/pls_", source, "_segments.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Model_tune
 #-------------------------------------------------------------------------------
 
 # Select the optimal number of components for all the iterations
-ncomp_max <- 30
+ncomp_max <- 20
 
 # Models to evaluate the optimal
 opt_models <- model_tune(meta = meta,
@@ -151,7 +158,7 @@ opt_models <- model_tune(meta = meta,
                          traits = traits[,1],
                          spectra = spectra,
                          ncomp_max = ncomp_max,
-                         threads = 25) # If windows = 1
+                         threads = 1) # If windows = 1
 
 # Plot optima
 #PRESS
@@ -181,8 +188,14 @@ plot(x = 1:30,
      ylab = "RMSEP")
 dev.off()
 
+# Which is min for PRESS?
+which.min(colMeans(opt_models[metric == "PRESS" | estimate == "PRESS", 7:ncol(opt_models)]))
+
+# Select ncomp of 
+ncomp <- as.numeric(which.min(colMeans(opt_models[metric == "PRESS" | estimate == "PRESS", 7:ncol(opt_models)])))
+
 # Manually select ncomp
-ncomp <- 14
+#ncomp <- 14
 
 # Export csv of statistics for record and figures
 fwrite(opt_models, paste0(out_path, "/pls_", source, "_opt_comp_models.csv"))
@@ -198,9 +211,9 @@ models <- model_build(meta = meta,
                       traits = traits[,1],
                       spectra = spectra,
                       ncomp = ncomp,
-                      threads = 25) # If windows = 1
+                      threads = 1) # If windows = 1
 
-# Export models
+# Export models, optionalvery heavy
 #saveRDS(models, paste0(out_path, "/pls_", source, "_final_models.rds"))
 
 #-------------------------------------------------------------------------------
@@ -212,7 +225,7 @@ training_performance <- model_performance(meta_split = meta[split,],
                                           spectra_split = spectra[split,],
                                           models = models,
                                           ncomp = ncomp,
-                                          threads = 25) # If windows = 1
+                                          threads = 2) # If windows = 1
 
 # Export
 fwrite(training_performance$performance, paste0(out_path, "/pls_", source, "_training_performance.csv"))
@@ -227,7 +240,7 @@ testing_performance <- model_performance(meta_split = meta[!split,],
                                          spectra_split = spectra[!split,],
                                          models = models,
                                          ncomp = ncomp,
-                                         threads = 25) # If windows = 1
+                                         threads = 4) # If windows = 1
 
 # Export
 fwrite(testing_performance$performance, paste0(out_path, "/pls_", source, "_testing_performance.csv"))
