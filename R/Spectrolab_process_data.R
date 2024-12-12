@@ -3,7 +3,9 @@
 #'------------------------------------------------------------------------------
 
 #' @description Scripts to input spectra files or spectra objects and metadata
-#' and export matrixes in csv
+#' and export matrixes in csv. This is customized for the HUH herbarium
+#' dataset and the Kothari pressed-leaf dataset.
+#' Plotting functions for datasets can be found at the bottom.
 #' 
 #'------------------------------------------------------------------------------
 #' @Library
@@ -51,16 +53,16 @@ splice_at = c(991.3, 1902.5)
 # Finally, match the sensor overlap, interpolate_wv=extent around splice_at values over which the splicing factors will be calculated.
 data_refl = spectrolab::match_sensors(x = data_refl, splice_at = splice_at, interpolate_wvl = c(5, 1))
 
-########################################################
-# Normalize (optional)
-########################################################
+#-------------------------------------------------------------------------------
+#' @Normalize
+#-------------------------------------------------------------------------------
 
 # Normalize spectra
 data_refl_norm = spectrolab::normalize(data_refl)
 
-################################################################################
-# Match metadata and spectra
-################################################################################
+#-------------------------------------------------------------------------------
+#' @Match-metadata-and-spectra
+#-------------------------------------------------------------------------------
 
 # set spectral data, normalized or otherwise
 spectra <- data_refl_norm
@@ -104,9 +106,9 @@ hasLMA <- database$hasLMA[match_idx]
 doy <- database$doy[match_idx]
 growthForm <- database$growthForm[match_idx]
 
-################################################################################
-# Create table for analysis
-################################################################################
+#-------------------------------------------------------------------------------
+#' @Build-and-write-data-table
+#-------------------------------------------------------------------------------
 
 full_data = data.frame(collector,accession, accession_leaf, leaf, scan, class, order, family, genus, species, growthForm,ddmmyyScanned,doy,absoluteAge,herbQuality,damage,glue,leafKg_m2,leafThickness,leafStage,as.matrix(spectra), check.names = F)
 
@@ -127,19 +129,25 @@ write.csv(full_data, file = "../dataHUH2024_sp25leaf563_norm_350-2500.csv")
 
 
 
+
+
+
+
+
+
 #'------------------------------------------------------------------------------
 #' @Kothari-Data
 #-------------------------------------------------------------------------------
 
-########################################################
-# load spectra object
-########################################################
+#-------------------------------------------------------------------------------
+#' @Load-Spectra-Object
+#-------------------------------------------------------------------------------
 
 pressed <- readRDS("../../Kothari data/pressed_spec_unavg_v3.rds")
 
-########################################################
-# Splice overlap region
-########################################################
+#-------------------------------------------------------------------------------
+#' @Splice-overlap-region
+#-------------------------------------------------------------------------------
 
 ## Guess "good" splicing bands
 #splice_guess = spectrolab::guess_splice_at(data_refl)
@@ -152,24 +160,24 @@ pressed <- readRDS("../../Kothari data/pressed_spec_unavg_v3.rds")
 # Finally, match the sensor overlap, interpolate_wv=extent around splice_at values over which the splicing factors will be calculated.
 #data_refl = spectrolab::match_sensors(x = pressed, splice_at = splice_at, interpolate_wvl = c(5, 1))
 
-########################################################
-# Normalize (optional)
-########################################################
+#-------------------------------------------------------------------------------
+#' @Normalize-optional
+#-------------------------------------------------------------------------------
 
 # Normalize spectra
 pressed_norm <- spectrolab::normalize(pressed)
 
 # Assign data
-names_col <- pressed_norm$names
-meta_data <- pressed_norm$meta
-bands <- pressed_norm$bands
-values <- pressed_norm$value
+names_col <- pressed$names
+meta_data <- pressed$meta
+bands <- pressed$bands
+values <- pressed$value
 values_df <- as.data.frame(values)
 colnames(values_df) <- bands
 
-########################################################
-# Revise metadata
-########################################################
+#-------------------------------------------------------------------------------
+#' @Revise-metadata
+#-------------------------------------------------------------------------------
 
 # Format species names to include only the first two words
 meta_data$species <- sapply(strsplit(meta_data$Species, " "), function(x) paste(x[1:min(2, length(x))], collapse = " "))
@@ -202,7 +210,84 @@ colnames(combined_data)[colnames(combined_data) == "LMA"] <- "leafKg_m2"
 colnames(combined_data)[colnames(combined_data) == "GrowthForm"] <- "growthForm"
 
 # Write the output to a CSV file
-write.csv(combined_data, file = "../dataKothari_pressed_unavg_noResample_norm_350-2500.csv", row.names = FALSE)
+write.csv(combined_data, file = "../dataKothari_pressed_unavg_noResample_350-2500.csv", row.names = FALSE)
 
 
+
+
+
+
+
+
+#-------------------------------------------------------------------------------
+#' @Plot-spectra
+#-------------------------------------------------------------------------------
+
+# Read spectra
+root_path <- getwd()
+frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_ref5nm_norm_450-2400.csv"))
+
+# Define bands of interest
+bands <- seq(450, 2400, by = 5)
+cbands <- as.character(bands)
+
+# Extract meta and spectra
+meta <- frame[, c("accession", "species", "genus", "family", "growthForm")]
+spectra <- frame[, ..cbands]
+
+## Subset data
+# Define species of interest
+species_of_interest <- "Populus tremuloides"
+# Filter meta
+filtered_sp_meta <- meta[species == species_of_interest]
+# Filter spectra
+filtered_sp_spectra <- spectra[meta$species == species_of_interest]
+
+# Select Accessions of Interest
+# E.g.pick the first 3 unique accessions
+accessions_of_interest <- unique(filtered_sp_meta$accession)[20:29]
+#or make a vector of accession numbers
+#accessions_of_interest <- c("")
+# Filter meta and spectra for the selected accessions
+filtered_meta <- filtered_sp_meta[accession %in% accessions_of_interest]
+filtered_spectra <- filtered_sp_spectra[filtered_sp_meta$accession %in% accessions_of_interest]
+
+# Add a sample identifier to differentiate lines
+filtered_meta$sample_id <- seq_len(nrow(filtered_meta))
+
+# Combine filtered_meta and filtered_spectra
+combined_data <- cbind(filtered_meta, filtered_spectra)
+
+# Reshape the combined data to long format for plotting
+long_data <- combined_data %>%
+  tidyr::pivot_longer(
+    cols = all_of(cbands), # Use column names corresponding to wavelengths
+    names_to = "wavelength",                 # New column for wavelengths
+    values_to = "reflectance"                # New column for reflectance values
+  )
+
+# Convert wavelength to numeric for correct plotting
+long_data$wavelength <- as.numeric(long_data$wavelength)
+
+# Plot the spectra using ggplot
+ggplot(long_data, aes(x = wavelength, y = reflectance, color = accession, group = sample_id)) +
+  geom_line(alpha = 0.7) +
+  labs(
+    title = paste("Spectra for", species_of_interest, ":724305 problem"),
+    x = "Wavelength (nm)",
+    y = "Reflectance",
+    color = "Accession"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 10, face = "bold")
+  )
+
+ggsave("spectra_plot_Poptre_problem724305_sm.pdf", plot = last_plot(), device = "pdf", width = 5, height = 3.5)
+
+
+#-------------------------------------------------------------------------------
+#' @End
+#-------------------------------------------------------------------------------
 
