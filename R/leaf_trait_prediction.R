@@ -63,10 +63,19 @@ dir.create(out_path, recursive = TRUE)
 if(source == "HUH") {
   
   # HUH
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_450-2400.csv")) #CWT
-  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv")) #CWTnorm
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")) #ref
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv")) #refnorm
+  if (dataset == "cwtnorm") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv"))
+  } else if (dataset == "cwt") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_450-2400.csv"))
+  } else if (dataset == "ref") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv"))
+  } else if (dataset == "refnorm") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv"))
+  } else {
+    stop("Invalid dataset specified for HUH.")
+  }
+  
+  # drop rows with no trait data
   frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
@@ -86,12 +95,20 @@ if(source == "HUH") {
 } else if(source == "Kothari") {
   
   # Kothari
-  #frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv")) #CWT
-  #frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv")) #CWTnorm
-  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv")) #ref
-  #frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_norm_450-2400.csv")) #refnorm
+  if (dataset == "cwtnorm") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv"))
+  } else if (dataset == "refnorm") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_norm_450-2400.csv"))
+  } else if (dataset == "cwt") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv"))
+  } else if (dataset == "ref") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv"))
+  } else {
+    stop("Invalid dataset specified for Kothari.")
+  }
   
-  frame <- frame[!is.na(car),]
+  # Drop rows with no trait data
+  frame <- frame[!is.na(leafKg_m2),]
   
   # Kothari meta
   meta <- frame[, c("name", "accession", "Species", "LatinGenus", "LatinSpecies", 

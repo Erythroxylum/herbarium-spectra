@@ -25,6 +25,7 @@ library(plsVarSel)
 # for DW MBP, setwd()
 source("auxiliary/data_split_balanced.R")
 source("auxiliary/data_segments.R")
+source("auxiliary/folds.R")
 source("auxiliary/model_tune_plsda.R")
 source("auxiliary/model_build_classification.R")
 source("auxiliary/model_performance_classification.R")
@@ -48,8 +49,8 @@ root_path <- "/n/netscratch/davis_lab/Everyone/dwhite/herbarium-spectra"
 #-------------------------------------------------------------------------------
 
 # Select the file of interest
-frame <- fread("../dataHUH2024_sp25leaf563_norm_5nm_400-2400.csv")
-frame <- fread("../dataKothari_pressed_unavg_norm_5nm_400-2400.csv")
+frame <- fread("data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")
+#frame <- fread("data/dataKothari_pressed_unavg_ref5nm_450-2400.csv")
 frame <- frame[!is.na(leafKg_m2),]
 
 #species_vector <- c("Quercus rubra", "Populus tremuloiddes", "Populus grandidentata", "Fagus grandifolia", "Betula populifolia", "Betula papyrifera", "Agonis flexuosa", "Acer saccharum", "Acer saccharinum", "Acer rubrum")
@@ -91,7 +92,7 @@ saveRDS(split, paste0(root_path, "/classification_split.rds"))
 #-------------------------------------------------------------------------------
 
 # Select a spectral measurement per specimen
-iterations <- 3 # 1000
+iterations <- 10 # 1000
 
 segments <- pbmclapply(X = 1:iterations,
                        FUN = data_segments,
@@ -119,7 +120,7 @@ opt_models <- model_tune_plsda(meta = meta,
                                species = species,
                                spectra = spectra,
                                ncomp_max = ncomp_max,
-                               threads = 4) # If windows = 1, mac 2 same as 6
+                               threads = 5) # If windows = 1, mac 2 same as 6
 
 
 # Filter for accuracy and accuracy SD metrics
@@ -164,7 +165,7 @@ models_plsda <- model_build_plsda(meta = meta,
                                   species = species,
                                   spectra = spectra,
                                   ncomp = ncomp,
-                                  threads = 6) # If windows = 1
+                                  threads = 5) # If windows = 1
 
 # Based on LDA
 models_lda <- model_build_lda(meta = meta,
@@ -172,11 +173,11 @@ models_lda <- model_build_lda(meta = meta,
                               segments = segments,
                               species = species,
                               spectra = spectra,
-                              threads = 2) # If windows = 1
+                              threads = 5) # If windows = 1
 
 # save models
-saveRDS(models_plsda, "classification_plsda_models.rds")
-saveRDS(models_lda, "classification_lda_models.rds")
+#saveRDS(models_plsda, "classification_plsda_models.rds")
+#saveRDS(models_lda, "classification_lda_models.rds")
 
 #-------------------------------------------------------------------------------
 #' @Performance-training
@@ -189,7 +190,7 @@ performance_plsda_training <- model_performance_plsda(meta_split = meta[split, ]
                                                       spectra_split = spectra[split, ],
                                                       models = models_plsda,
                                                       ncomp = ncomp,
-                                                      threads = 2)
+                                                      threads = 5)
 
 #generate inverse of numeric vector for species split
 inverse_split <- setdiff(1:length(species), split)
@@ -199,19 +200,19 @@ performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ]
                                                      spectra_split = spectra[!split, ],
                                                      models = models_plsda,
                                                      ncomp = ncomp,
-                                                     threads = 2)
+                                                     threads = 5)
 
 performance_lda_training <- model_performance_lda(meta_split = meta[split, ],
                                                   species_split = species[split], 
                                                   spectra_split = spectra[split, ],
                                                   models = models_lda,
-                                                  threads = 2)
+                                                  threads = 5)
 
 performance_lda_testing <- model_performance_lda(meta_split = meta[!split, ],
                                                   species_split = species[inverse_split], 
                                                   spectra_split = spectra[!split, ],
                                                   models = models_lda,
-                                                  threads = 2)
+                                                  threads = 5)
 
 # Export for record
 saveRDS(performance_plsda_training, paste0(root_path, "/performance_plsda_training.rds"))
@@ -222,15 +223,6 @@ saveRDS(performance_lda_testing, paste0(root_path, "/performance_lda_testing.rds
 #-------------------------------------------------------------------------------
 #' @Model_coefficients
 #-------------------------------------------------------------------------------
-
-## BAD
-coefficients_plsda <- pls_coefficients(models = models_plsda)
-
-coefficients_lda <- pls_coefficients(models = models_lda,
-                                 ncomp = ncomp)
-
-fwrite(coefficients_plsda, paste0(root_path, "/classification_plsda_coefficients.csv"))
-fwrite(coefficients_plsda, paste0(root_path, "/classification_lda_coefficients.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Model_VIP

@@ -34,23 +34,22 @@ results <- paste0(root_path, "/results")
 #' @Read-Information_Reshape
 #-------------------------------------------------------------------------------
 
+# Define source
+coef_source <- "Kothari" # Coefficients of trait model
+spectra_source <- "HUH" # Spectra for new predictions
+dataset <- "cwt" # LMA = ref cwtnorm # others = refC, Ca, car, cel, chlA, N, sol
+trait_name <- "sol"
+
 # Define bands of interest
 #bands <- seq(450, 2400, by = 5) # full-range
 bands <- seq(1350, 2400, by = 5) # SWIRs
 #bands <- seq(450, 1300, by = 5) # VNIR
-#bands <- seq(680, 900, by = 5)
 
 # remove sensor overlap region
 #bands <- bands[!(bands >= 980 & bands <= 1000)]
 
-# Define source
-coef_source <- "Kothari" # Coefficients of trait model
-spectra_source <- "HUH" # Spectra for new predictions
-dataset <- "refnormsol" # LMA = ref cwtnorm # others = refC, Ca, car, cel, chlA, N, sol
-
-{
 # Define out_path of results
-out_path <- paste0(root_path, "/results/model_transfer/Coef-", coef_source, "_Spec-", spectra_source, "_", dataset, "_", min(bands), "-", max(bands))
+out_path <- paste0(root_path, "/results/model_transfer/", "Coef-", coef_source, "_Spec-", spectra_source, "_", dataset, trait_name, "_", min(bands), "-", max(bands))
 dir.create(out_path, recursive = TRUE)
 
 # ------------------------------------------------------------------------------
@@ -58,7 +57,7 @@ dir.create(out_path, recursive = TRUE)
 
 coef <- fread(paste0(root_path, "/results/", 
                      coef_source, "/", 
-                     dataset, "/", 
+                     dataset, trait_name, "/", 
                      coef_source, "_", min(bands), "-", max(bands), "/pls_", coef_source, "_coefficients.csv"))
 colnames(coef) <- gsub("`", "", colnames(coef))
 
@@ -68,11 +67,20 @@ colnames(coef) <- gsub("`", "", colnames(coef))
 if(spectra_source == "HUH") {
   
   # HUH
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv")) #CWTnorm
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_450-2400.csv")) #CWT
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")) #ref
-  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv")) #refnorm
-  #frame <- frame[!is.na(leafKg_m2),]
+  if (dataset == "cwtnorm") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv"))
+  } else if (dataset == "cwt") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_450-2400.csv"))
+  } else if (dataset == "ref") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv"))
+  } else if (dataset == "refnorm") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv"))
+  } else {
+    stop("Invalid dataset specified for HUH.")
+  }
+  
+  # drop rows with no trait data
+  frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
   meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan", 
@@ -91,8 +99,19 @@ if(spectra_source == "HUH") {
 } else if(spectra_source == "Kothari") {
   
   # Kothari
-  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv")) #CWT
-  #frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_norm_450-2400.csv")) #ref
+  if (dataset == "cwtnorm") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv"))
+  } else if (dataset == "refnorm") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_norm_450-2400.csv"))
+  } else if (dataset == "cwt") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv"))
+  } else if (dataset == "ref") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv"))
+  } else {
+    stop("Invalid dataset specified for Kothari.")
+  }
+  
+  # Drop rows with no trait data
   frame <- frame[!is.na(leafKg_m2),]
   
   # Kothari meta
@@ -143,5 +162,17 @@ results_trait <- cbind(frame[, 1:22], trait_stats)
 print(results_trait)
 
 # Optionally write to a CSV file
-write.csv(results_trait, paste0(out_path, "/Coef-", coef_source, "_Spec-", spectra_source, "_", dataset, "_", min(bands), "-", max(bands), "_predicted_trait.csv"), row.names = FALSE)
-}
+write.csv(results_trait, paste0(out_path, "/Coef-", coef_source, "_Spec-", spectra_source, "_", dataset, trait_name, "_", min(bands), "-", max(bands), "_predicted_trait.csv"), row.names = FALSE)
+
+#-------------------------------------------------------------------------------
+#' @Clear-environment
+#-------------------------------------------------------------------------------
+
+# remove non-function objects from envt
+rm(list = ls()[!sapply(ls(), function(x) is.function(get(x)))])
+
+#-------------------------------------------------------------------------------
+#' @End
+#-------------------------------------------------------------------------------
+
+

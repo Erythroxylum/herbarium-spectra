@@ -125,7 +125,7 @@ parameters <- function(obs, pred) {
   slope <- linear_summary$coefficients[2,1]
   BIAS <- mean(obs-pred, na.rm = TRUE)
   RMSE <- sqrt(sum(((obs-pred)^2))/length(obs))
-  perRMSE <- sqrt(sum(((obs-pred)^2))/length(obs))/(quantile(obs, 0.99, na.rm = TRUE) - quantile(obs, 0.01, na.rm = TRUE))
+  perRMSE <- (sqrt(sum(((obs-pred)^2))/length(obs))/(quantile(obs, 0.99, na.rm = TRUE) - quantile(obs, 0.01, na.rm = TRUE)))*100
   names(perRMSE) <- NULL
   
   

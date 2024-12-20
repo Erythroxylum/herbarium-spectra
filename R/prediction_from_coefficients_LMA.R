@@ -25,7 +25,7 @@ source("auxiliary/model_performance_average.R")
 #' @Working_directory
 #-------------------------------------------------------------------------------
 
-# Select the root_folder to read data and export results
+# SET the root_folder to read data and export results
 
 # Antonio
 root_path <- getwd()
@@ -34,22 +34,24 @@ results <- paste0(root_path, "/results")
 #'------------------------------------------------------------------------------
 #' @Read-Information_Reshape
 #-------------------------------------------------------------------------------
+# SET source
+coef_source <- "Kothari" #Kothari or HUH
+spectra_source <- "HUH" #Kothari or HUH
+dataset <- "cwt" # ref, cwt, refnorm, cwtnorm, refnormcut, cwt
 
-# Define bands of interest
+# SET bands of interest
 bands <- seq(450, 2400, by = 5)
 bands <- seq(1350, 2400, by = 5)
-bands <- seq(450, 1300, by = 5)
+#bands <- seq(450, 1300, by = 5)
 
 # remove sensor overlap region
 #bands <- bands[!(bands >= 980 & bands <= 1000)]
 
-# Define source
-coef_source <- "HUH" #Kothari or HUH
-spectra_source <- "Kothari" #Kothari or HUH
-dataset <- "cwt" # ref, cwt, refnorm, cwtnorm, refnormcut, cwt
 
-# Define out_path of results
-out_path <- paste0(root_path, "/results/model_transfer/coef-", coef_source, "_spec-", spectra_source, "_", dataset, "_", min(bands), "-", max(bands))
+# ------------------------------------------------------------------------------
+###  Define out_path of results
+
+out_path <- paste0(root_path, "/results/model_transfer/LMA_coef-", coef_source, "_spec-", spectra_source, "_", dataset, "_", min(bands), "-", max(bands))
 dir.create(out_path, recursive = TRUE)
 
 # ------------------------------------------------------------------------------
@@ -62,15 +64,22 @@ colnames(coef) <- gsub("`", "", colnames(coef))
 # ------------------------------------------------------------------------------
 ### Read spectra
 
-## CHANGE spectra source to ref, refnorm, cwt, or cwtnorm
-
 if(spectra_source == "HUH") {
   
   # HUH
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv")) #CWTnorm
-  frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_450-2400.csv")) #CWT
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")) #ref
-  #frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv")) #refnorm
+  if (dataset == "cwtnorm") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv"))
+  } else if (dataset == "cwt") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_450-2400.csv"))
+  } else if (dataset == "ref") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv"))
+  } else if (dataset == "refnorm") {
+    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv"))
+  } else {
+    stop("Invalid dataset specified for HUH.")
+  }
+  
+  # drop rows with no trait data
   frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
@@ -90,10 +99,19 @@ if(spectra_source == "HUH") {
 } else if(spectra_source == "Kothari") {
   
   # Kothari
-  #frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv")) #CWTnorm
-  #frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_norm_450-2400.csv")) #refnorm
-  frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv")) #CWT
-  #frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv")) #ref
+  if (dataset == "cwtnorm") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv"))
+  } else if (dataset == "refnorm") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_norm_450-2400.csv"))
+  } else if (dataset == "cwt") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv"))
+  } else if (dataset == "ref") {
+    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv"))
+  } else {
+    stop("Invalid dataset specified for Kothari.")
+  }
+  
+  # Drop rows with no trait data
   frame <- frame[!is.na(leafKg_m2),]
   
   # Kothari meta
@@ -122,7 +140,7 @@ if(spectra_source == "HUH") {
 #-------------------------------------------------------------------------------
 #' @Predict-from-spectra
 #-------------------------------------------------------------------------------
-{
+
 trait_predicted <- pred_coef(spectra, coef, bands)
 
 #-------------------------------------------------------------------------------
@@ -196,7 +214,17 @@ abline(a = mean(performance$intercept), b = mean(performance$slope), col = "red"
 dev.off()
 
 #-------------------------------------------------------------------------------
+#' @Clear-environment
+#-------------------------------------------------------------------------------
+
+# remove non-function objects from envt
+rm(list = ls()[!sapply(ls(), function(x) is.function(get(x)))])
+
+#-------------------------------------------------------------------------------
 #' @End
 #-------------------------------------------------------------------------------
-}
+
+
+
+
 
