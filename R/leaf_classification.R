@@ -92,7 +92,7 @@ saveRDS(split, paste0(root_path, "/classification_split.rds"))
 #-------------------------------------------------------------------------------
 
 # Select a spectral measurement per specimen
-iterations <- 10 # 1000
+iterations <- 1000 # 1000
 
 segments <- pbmclapply(X = 1:iterations,
                        FUN = data_segments,
