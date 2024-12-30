@@ -20,7 +20,7 @@ model_performance_plsda <- function(meta_split,
     # Predict new values
     predicted <- predict(models[[X]], 
                          newdata = frame,
-                         ncom = ncomp,
+                         ncomp = ncomp,
                          type = "prob")
     
     predicted <- as.data.table(cbind(iteration = X,
@@ -61,7 +61,7 @@ model_performance_plsda <- function(meta_split,
     cm <- confusionMatrix(tab)
     
     # Export results
-    results <- data.table(iteration = X)
+    results <- data.table(iteration = X, ncomp = ncomp) # added ncomp output
     results <- cbind(results, matrix(cm$overall, nrow = 1))
     colnames(results)[2:8] <- names(cm$overall)
     
@@ -196,4 +196,3 @@ model_performance_lda <- function(meta_split,
               predicted = predicted))
   
 }
-

@@ -26,7 +26,6 @@ source("auxiliary/model_performance_average.R")
 
 # Select the root_folder to read data and export results
 
-# Antonio
 root_path <- getwd()
 results <- paste0(root_path, "/results")
 
@@ -37,12 +36,12 @@ results <- paste0(root_path, "/results")
 # Define source
 coef_source <- "Kothari" # Coefficients of trait model
 spectra_source <- "HUH" # Spectra for new predictions
-dataset <- "cwt" # LMA = ref cwtnorm # others = refC, Ca, car, cel, chlA, N, sol
-trait_name <- "sol"
+dataset <- "cwt" # cwt or ref
+trait_name <- "sol" # "" for lma, other C, Ca, car, cel, chlA, N, sol
 
 # Define bands of interest
-#bands <- seq(450, 2400, by = 5) # full-range
-bands <- seq(1350, 2400, by = 5) # SWIRs
+bands <- seq(450, 2400, by = 5) # full-range
+#bands <- seq(1350, 2400, by = 5) # SWIRs
 #bands <- seq(450, 1300, by = 5) # VNIR
 
 # remove sensor overlap region
@@ -80,7 +79,7 @@ if(spectra_source == "HUH") {
   }
   
   # drop rows with no trait data
-  frame <- frame[!is.na(leafKg_m2),]
+  #frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
   meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan", 
@@ -112,7 +111,7 @@ if(spectra_source == "HUH") {
   }
   
   # Drop rows with no trait data
-  frame <- frame[!is.na(leafKg_m2),]
+  #frame <- frame[!is.na(leafKg_m2),]
   
   # Kothari meta
   meta <- frame[, c("name", "accession", "Species", "LatinGenus", "LatinSpecies", 
@@ -155,7 +154,8 @@ trait_stats <- trait_predicted[, .(
 
 # Step 2: Combine the computed statistics with metadata columns (1:22)
 # Convert to data.table for easier merging
-results_trait <- cbind(frame[, 1:22], trait_stats)
+results_trait <- cbind(frame[, 1:22], trait_stats) #huh
+#results_trait <- cbind(frame[, 1:59], trait_stats) #kot
 
 # Step 3: Save or view the resulting data.table
 # View the first few rows

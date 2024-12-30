@@ -35,8 +35,6 @@ source("auxiliary/pls_vip.R")
 #-------------------------------------------------------------------------------
 
 # Select the root_folder to read data and export results
-
-# Antonio
 root_path <- getwd()
 
 #'------------------------------------------------------------------------------
@@ -45,7 +43,7 @@ root_path <- getwd()
 
 # Define source
 source <- "Kothari" #Kothari or HUH
-dataset <- "cwtnorm" # ref, cwt, refnorm, cwtnorm
+dataset <- "ref" # ref, cwt, refnorm, cwtnorm
 
 # Define bands of interest
 bands <- seq(450, 2400, by = 5)
@@ -131,7 +129,7 @@ if(source == "HUH") {
   cbands <- as.character(bands)
   spectra <- frame[, ..cbands]
   
-}
+
 
 #-------------------------------------------------------------------------------
 #' @Data-split
@@ -233,7 +231,7 @@ models <- model_build(meta = meta,
                       ncomp = ncomp,
                       threads = 8) # If windows = 1
 
-# Export models, optionalvery heavy
+# Export models, optional, very heavy
 #saveRDS(models, paste0(out_path, "/pls_", source, "_final_models.rds"))
 
 #-------------------------------------------------------------------------------

@@ -10,7 +10,7 @@ library(caret)  # For confusionMatrix function
 #-------------------------------------------------------------------------------
 # PLSDA
 
-confusion_matrices_plsda_dw <- function(meta_split, species_split, spectra_split, models, ncomp, threads = 1) {
+confusion_matrices_plsda <- function(meta_split, species_split, spectra_split, models, ncomp, threads = 1) {
   
   # Data for predictions
   frame <- cbind(species_split, spectra_split)
@@ -79,7 +79,7 @@ confusion_matrices_plsda_dw <- function(meta_split, species_split, spectra_split
 #-------------------------------------------------------------------------------
 # LDA
 
-confusion_matrices_lda_dw <- function(meta_split, species_split, spectra_split, models, threads = 1) {
+confusion_matrices_lda <- function(meta_split, species_split, spectra_split, models, threads = 1) {
   
   # Data for predictions
   frame <- cbind(species_split, spectra_split)

@@ -28,14 +28,14 @@ spectra_path <- getwd()
 # do cwt then ref then cwt
 # do each HUH trait for each ggplot and then make final plot together.
 
-# load Pressed data. Plots are weird with cwt
+# load Pressed data.
 Kothari_data <- read.csv("data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv")
 
 # set trait:  nothing or leafKg_m2 for LMA, C, Ca, car, cel or cellulose, chlA, N, sol or solubles
 trait_name <- "solubles"
 
 # Step 1: Load HUH trait data - edit dataset "cwt" or "cwtnorm"
-HUH_data <- read.csv(paste0("results/model_transfer/Coef-Kothari_Spec-HUH_cwt", trait_name, "_1350-2400/Coef-Kothari_Spec-HUH_cwt", trait_name, "_1350-2400_predicted_trait.csv"))
+HUH_data <- read.csv(paste0("results/model_transfer/Coef-Kothari_Spec-HUH_cwt", trait_name, "_450-2400/Coef-Kothari_Spec-HUH_cwt", trait_name, "_450-2400_predicted_trait.csv"))
 
 # Step 2: Parse HUH Data
 HUH_parse <- HUH_data %>%
@@ -186,7 +186,7 @@ trait_sol <- ggplot(combined_data_cwt_sol, aes(x = species, y = trait_value, fil
                position = position_dodge(0.8), show.legend = FALSE, size = 0.1) + # Adjust size for visibility
   scale_x_discrete(labels = function(x) lapply(x, function(label) bquote(italic(.(label))))) + # Italicize species names
   scale_y_continuous(name = expression(Solubles ~ (mg ~ g^{-1}))) + # Correct y-axis for trait_value (continuous)
-  scale_fill_manual(name = "Dataset: CWT,1350-2400 nm, ", values = c("Herbarium" = "#56B4E9", "Pressed" = "#E69F00")) +
+  scale_fill_manual(name = "Dataset: CWT, 450-2400 nm ", values = c("Herbarium" = "#56B4E9", "Pressed" = "#E69F00")) +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1, size = 8), # Format x-axis labels
@@ -203,7 +203,7 @@ trait_sol <- ggplot(combined_data_cwt_sol, aes(x = species, y = trait_value, fil
 library(patchwork)
 combined_plot <- trait_LMA / trait_C / trait_Ca / trait_car / trait_cel / trait_chlA / trait_N / trait_sol
 
-ggsave("results/Figure-trait_violins_cwt1350.pdf", plot = combined_plot, width = 8.5, height = 11)
+ggsave("results/Figure-trait_violins_cwt_450-2400.pdf", plot = combined_plot, width = 8.5, height = 11)
 
 
 

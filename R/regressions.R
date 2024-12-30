@@ -3,11 +3,11 @@
 #' predictors
 #'------------------------------------------------------------------------------
 
-#' @description Script to assemble classification probabilities, phylogenetic 
-#' distances and herbarium quality metadata and analyze under regressions and 
-#' ANCOVA
+#' @description Script to classify spectra from PLS-DA coefficients, and run 
+#' analyses testing herbarium specimen metadata against classification results
+#' 
  
-#' @return 
+#' @return Plots
 #' 
 
 #'------------------------------------------------------------------------------
@@ -21,21 +21,26 @@ library(ggplot2)
 library(tidyr)
 
 #'------------------------------------------------------------------------------
+#' @Source_code
+#-------------------------------------------------------------------------------
+
+source("auxiliary/pred_coef.R")
+
+#'------------------------------------------------------------------------------
 #' @Working_directory
 #-------------------------------------------------------------------------------
-setwd("/Users/dawsonwhite/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/results/LDA/")
 
 # Select the root_folder to read data and export results
-root_path <- "C:/Users/jog4076/Downloads"
-root_path <- "~/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/herbarium-spectra/"
+root_path <- getwd()
+output_path <- paste0(root_path, "/Figures_Tables/")
 
 #'------------------------------------------------------------------------------
 #' @Read-Information
 #-------------------------------------------------------------------------------
 
-# Select the file of interest
+# Read data
 frame <- fread(paste0(root_path, 
-                      "../fullDataHUH2024_sp25leaf636_noResample_400-2300.csv"))
+                      "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape  
@@ -44,7 +49,7 @@ frame <- fread(paste0(root_path,
 # Get files from meta data, traits, and spectra.
 
 meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","species",
-                  "ddmmyyScanned", "absoluteAge", "herbQuality",
+                  "ddmmyyScanned", "doy", "absoluteAge", "herbQuality",
                   "damage", "glue", "leafStage", "greenIndex")]
 
 traits <- frame[, c("leafKg_m2", "leafThickness")]
@@ -54,117 +59,286 @@ meta$sample <- 1:nrow(meta)
 species <- frame$species
 species <- sub(" ", "_", species)
 
-spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
+spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
 
 
 #'------------------------------------------------------------------------------
-#' @Build_DataFrame
+#' @Predict_from_coefficients
 #-------------------------------------------------------------------------------
 
-##########################################################
-## Load PLSDA model
-models_plsda_regression <- readRDS("../leaf_plsdav1/models_plsda.rds")
+# Read PLSDA coefficients
+coef <- fread(paste0(root_path, "/out_classify/coefficients_plsda.csv"))
+coef$Predictor <- gsub("`", "", coef$Predictor)
 
-## Apply the trained model to predict probabilities and class labels
-plsProbs_all <- predict(models_plsda_regression[1], newdata = as.matrix(spectra), type = "prob")[[1]]  # First element in list
-plsClasses_all <- predict(models_plsda_regression[1], newdata = as.matrix(spectra))[[1]]
+# Get class names from coefficients
+classes <- colnames(coef)[!colnames(coef) %in% c("Predictor", "Iteration")]
 
-## Retrieve true classes and metadata
-true_class <- species  # Assuming 'species' is aligned with spectra rows
-predicted_class <- plsClasses_all
-
-## Combine `accession_leaf_scan` by joining columns from meta
-sample <- as.character(paste(meta$accession_leaf, meta$scan, sep = "_"))
-
-## Prepare probabilities for the true class in `Prob` column
-Prob <- sapply(1:nrow(plsProbs_all), function(i) plsProbs_all[i, true_class[i]])
-
-## Determine if each prediction is correct
-correct <- true_class == predicted_class
-
-#### Add Phylo Distance
-# Load the phylogenetic diversity data
-phyloDiv <- fread("../herbarium-predictors-analysis/PD-s25-scenario3.csv")
-
-# Ensure column names match the species names in the phyloDiv data
-setnames(phyloDiv, old = "V1", new = "species1")
-
-# Reshape `phyloDiv` to long format using all columns except `species_name`
-phyloDiv_long <- phyloDiv %>%
-  pivot_longer(
-    cols = -species1,
-    names_to = "species2",
-    values_to = "PD_value"
-  )
-
-## Add MNTD
-# Convert data to a data table if it's not already
-species_data <- as.data.table(phyloDiv) # from below
-
-# Calculate the smallest non-zero value for each species and round to the nearest whole number
-NTD <- species_data %>%
-  rowwise() %>%
-  mutate(ntd = round(min(c_across(-species1)[c_across(-species1) > 0], na.rm = TRUE))) %>%
-  select(species1, ntd) %>%
-  rename(species = species1)
-
-# Save to a CSV file
-write.csv(NTD, file = "../herbarium-predictors-analysis/MNTD.csv", row.names = FALSE)
-
-# Rename the 'species' column in MNTD to 'true_class' for merging compatibility
-NTD <- NTD %>% rename(true_class = species)
-
-# Assemble the data frame
-classProbs <- data.frame(
-  sample = sample,
-  true_class = as.factor(true_class),
-  predicted_class = as.factor(predicted_class),
-  correct = as.factor(correct),
-  herbQual = as.factor(meta$herbQual),
-  damage = as.factor(meta$damage),
-  glue = as.factor(meta$glue),
-  leafStage = as.factor(meta$leafStage),
-  absoluteAge = as.numeric(meta$absoluteAge),
-  greenIndex = as.numeric(meta$greenIndex),
-  Prob = as.numeric(Prob)
+# Predict probabilities
+predictions <- predict_plsda(
+  spectra = spectra,
+  coefficients = coef,
+  classes = classes,
+  true_classes = species,  # True class for validation
+  meta = meta,  # Metadata table
+  output_file = "plsda_probabilities_with_metadata.csv"
 )
 
-# Ensure factors are correctly defined
-classProbs$correct <- as.factor(ifelse(classProbs$true_class == classProbs$predicted_class, TRUE, FALSE))
-classProbs$true_class <- as.factor(classProbs$true_class)
-classProbs$predicted_class <- as.factor(classProbs$predicted_class)
+
+#'------------------------------------------------------------------------------
+#' @Add-Phylogenetic-Distance
+#-------------------------------------------------------------------------------
+
+# Load the phylogenetic tree
+phylo <- read.tree("herbarium-predictors-analysis/phylogram_pd_TimeTree5.tre")
+
+# Compute the pairwise matrix of phylogenetic distances
+distance_matrix <- cophenetic.phylo(phylo)
+
+# Convert the distance matrix to a data.table
+distance_matrix_dt <- as.data.table(as.table(distance_matrix), keep.rownames = "species1")
+
+# Rename columns for clarity
+setnames(distance_matrix_dt, c("V1", "V2", "N"), c("species1", "species2", "PD_value"))
+
+# Ensure species names match the predictions data
+distance_matrix_dt[, species1 := gsub(" ", "_", species1)]
+distance_matrix_dt[, species2 := gsub(" ", "_", species2)]
+predictions[, True_Class := gsub(" ", "_", True_Class)]
+predictions[, Predicted_Class := gsub(" ", "_", Predicted_Class)]
+
+# Calculate NTD for each True_Class
+ntd <- distance_matrix_dt[species1 != species2, .(
+  NTD = min(PD_value, na.rm = TRUE)
+), by = species1]
+
+# Rename `species1` to `True_Class` for merging compatibility
+setnames(ntd, "species1", "True_Class")
+
+# Merge NTD into predictions
+predictions <- merge(predictions, ntd, by = "True_Class", all.x = TRUE)
+
+# Add the phylogenetic distance to the Predicted_Class
+predictions <- merge(
+  predictions, 
+  distance_matrix_dt,
+  by.x = c("True_Class", "Predicted_Class"),
+  by.y = c("species1", "species2"),
+  all.x = TRUE
+)
+
+# Rename the distance column for clarity
+setnames(predictions, "PD_value", "Predicted_Class_PD")
+
+# Fill `Predicted_Class_PD` for correct classifications with 0
+predictions[Correct_Prediction == TRUE, Predicted_Class_PD := 0]
+
+##save
+saveRDS(predictions, "herbarium-predictors-analysis/huh_ref5nm_25spp_classification.rds")
 
 
-# Merge with NTD data
-classProbs <- classProbs %>%
-  left_join(NTD, by = "true_class")
+#'------------------------------------------------------------------------------
+#' @Plot_Prob_by_scan
+#-------------------------------------------------------------------------------
 
-# Merge with PD for true_class and predicted_class
-classProbs <- classProbs %>%
-  left_join(phyloDiv_long, by = c("true_class" = "species1", "predicted_class" = "species2"))
+predictions <- readRDS("herbarium-predictors-analysis/huh_ref5nm_25spp_classification.rds")
 
-# Check the structure of the updated result_table
-str(classProbs)
+# Ensure the data.table structure is correct
+predictions_scan <- as.data.table(predictions)
 
-# Save to a CSV file
-saveRDS(classProbs, file = "../herbarium-predictors-analysis/FullData_classProbs.rds")
+# Restrict scans to the first three per accession_leaf and renumber rows
+predictions_scan <- predictions_scan[, .SD[1:3], by = accession_leaf]
+predictions_scan[, Scan_Index := seq_len(.N) - 1, by = accession_leaf]  # Renumber rows as 0, 1, 2
+
+# Ensure that only groups with all three scans are included
+valid_predictions <- predictions_scan[, if (.N == 3) .SD, by = accession_leaf]
+
+# Extract probability of the predicted class
+valid_predictions[, Predicted_Probability := mapply(function(class, row) {
+  row[[paste0("prob_", class)]]
+}, Predicted_Class, split(.SD, seq_len(nrow(.SD))), SIMPLIFY = TRUE),
+.SDcols = patterns("^prob_")]
+
+# Prepare data for plotting (include accession_leaf for validation)
+plot_data <- valid_predictions[, .(accession_leaf, Scan_Index, Correct_Prediction, Predicted_Probability)]
+
+# Remove accession_leaf groups where all Correct_Prediction values are the same
+filtered_plot_data <- plot_data[, if (!(all(Correct_Prediction) || all(!Correct_Prediction))) .SD, by = accession_leaf]
+
+## Chi-squared test
+# Create contingency table: Count correct and incorrect predictions for each scan
+contingency_table <- filtered_plot_data[, .N, by = .(Scan_Index, Correct_Prediction)]
+contingency_table <- dcast(contingency_table, Scan_Index ~ Correct_Prediction, value.var = "N", fill = 0)
+setnames(contingency_table, c("Scan_Index", "FALSE", "TRUE"), c("Scan_Index", "Incorrect", "Correct"))
+
+# Perform Chi-Square Test
+chi_square_test <- chisq.test(contingency_table[, .(Correct, Incorrect)])
+
+# Print results
+print("Contingency Table:")
+print(contingency_table)
+print("Chi-Square Test Results:")
+print(chi_square_test)
+
+# Add a column for total predictions per scan
+contingency_table[, Total := Correct + Incorrect]
+
+# Calculate proportions
+contingency_table[, Correct_Proportion := Correct / Total]
+contingency_table[, Incorrect_Proportion := Incorrect / Total]
+
+# Melt the data for plotting proportions
+proportion_data <- melt(
+  contingency_table,
+  id.vars = "Scan_Index",
+  measure.vars = c("Incorrect_Proportion", "Correct_Proportion"),
+  variable.name = "Classification",
+  value.name = "Proportion"
+)
+
+# Update classification labels for the legend
+proportion_data[, Classification := ifelse(Classification == "Correct_Proportion", "Correct", "Incorrect")]
+
+# Create labels for incorrect and correct counts
+contingency_table[, Label := paste0("Incorrect: ", Incorrect, "\nCorrect: ", Correct)]
+
+# Generate the bar plot
+bar_chart <- ggplot(proportion_data, aes(x = factor(Scan_Index), y = Proportion, fill = Classification)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.8) +
+  geom_text(
+    data = contingency_table,
+    aes(x = factor(Scan_Index), y = 0.69, label = Label),  # Adjust y to place labels
+    inherit.aes = FALSE,
+    size = 3
+  ) +
+  labs(
+    title = "Proportion of Correct and Incorrect Predictions by Scan",
+    x = "Scan",
+    y = "Proportion",
+    fill = "Classification"
+  ) +
+  scale_fill_manual(values = c("Incorrect" = "red", "Correct" = "blue")) +
+  scale_y_continuous(limits = c(0, 0.72)) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 10),
+    plot.title = element_text(size = 11),
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    legend.position = "top"
+  )
+
+# Reorder levels of Correct_Prediction to ensure "Correct" is on the left
+plot_data[, Correct_Prediction := factor(Correct_Prediction, levels = c(TRUE, FALSE))]
+
+# Generate the probabilities boxplot
+boxplot <- ggplot(plot_data, aes(x = factor(Scan_Index), y = Predicted_Probability, fill = Correct_Prediction)) +
+  geom_boxplot(position = position_dodge(width = 0.75), alpha = 0.7) +
+  labs(
+    title = "Prediction Probabilities",
+    x = "Scan",
+    y = "Probability of Predicted Class",
+    fill = "Classification"
+  ) +
+  scale_fill_manual(
+    values = c("TRUE" = "blue", "FALSE" = "red"),
+    labels = c("TRUE" = "Correct", "FALSE" = "Incorrect")  # Custom legend labels
+  ) +
+  #scale_y_continuous(limits = c(0.035, 0.125)) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 10),
+    plot.title = element_text(size = 11),
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    legend.position = "top"
+  )
+# Save the plot
+#ggsave("classification_probabilities_boxplot_with_counts.pdf", plot = boxplot, width = 8, height = 6)
+
+# Combine the plots side by side using patchwork
+combined_plot <- bar_chart + boxplot + plot_layout(ncol = 2)
+
+# Save the combined plot to a single PDF
+ggsave("classification_by_scan_combined_plots.pdf", plot = combined_plot, width = 8.5, height = 4)
+
+# Display the combined plot
+print(combined_plot)
+
+
+
+#'------------------------------------------------------------------------------
+#' @Proportion-correct-by-NTD
+#-------------------------------------------------------------------------------
+
+### Seems to be a problem where several taxa were not predicted very well?
+
+predictions <- readRDS("herbarium-predictors-analysis/huh_ref5nm_25spp_classification.rds")
+
+# Calculate proportions for each unique NTD
+ntd_summary <- predictions[, .(
+  Total = .N,
+  Correct = sum(Correct_Prediction == TRUE),
+  Incorrect = sum(Correct_Prediction == FALSE)
+), by = NTD]
+
+# Add proportions
+ntd_summary[, `:=`(
+  Correct_Proportion = Correct / Total,
+  Incorrect_Proportion = Incorrect / Total
+)]
+
+# Reshape data for plotting
+plot_data <- melt(
+  ntd_summary,
+  id.vars = "NTD",
+  measure.vars = c("Correct_Proportion", "Incorrect_Proportion"),
+  variable.name = "Classification",
+  value.name = "Proportion"
+)
+
+# Update classification labels
+plot_data[, Classification := ifelse(Classification == "Correct_Proportion", "Correct", "Incorrect")]
+
+# Filter plot_data to include only correct classifications
+correct_data <- plot_data[Classification == "Correct"]
+
+# Generate the line plot for correct classifications only
+line_plot <- ggplot(correct_data, aes(x = NTD, y = Proportion, color = Classification, group = Classification)) +
+  geom_line(linewidth = 1, color = "blue") +  # Set color to blue for "Correct"
+  geom_point(size = 2, color = "blue") +      # Set point color to blue
+  labs(
+    title = "Proportion of Correct Classifications by NTD",
+    x = "Nearest Taxon Distance (NTD)",
+    y = "Proportion"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 12),
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    legend.position = "none"  # Remove legend as only one classification is shown
+  )
+
+# Save the plot
+ggsave("proportion_by_ntd_no_bins.pdf", plot = line_plot, width = 8, height = 6)
+
+# Display the plot
+print(line_plot)
+
 
 #'------------------------------------------------------------------------------
 #' @Subset_DataFrame
 #-------------------------------------------------------------------------------
 
 # Generate data frame with correct classifications
-correct_classifications <- classProbs %>%
-  filter(true_class == predicted_class) %>%
+correct_classifications <- predictions %>%
+  filter(True_Class == Predicted_Class) %>%
   mutate(dataset = "Correct Predictions")
 
 # Generate data frame with incorrect classifications
-incorrect_classifications <- classProbs %>%
-  filter(true_class != predicted_class) %>%
+incorrect_classifications <- predictions %>%
+  filter(True_Class != Predicted_Class) %>%
   mutate(dataset = "Incorrect Predictions")
 
 # Add a label for the full dataset
-classProbs <- classProbs %>%
+classProbs <- predictions %>%
   mutate(dataset = "All")
 
 
@@ -189,7 +363,7 @@ ymin = 0
 ymax = 0.2
 
 # Plot for herbQuality
-p1 <- ggplot(all_data, aes(x = herbQual, y = Prob, fill = dataset)) +
+p1 <- ggplot(all_data, aes(x = herbQuality, y = Prob, fill = dataset)) +
   geom_boxplot(outlier.colour = "red") +
   labs(x = "Herb Quality", y = "Predicted Probabilities") +
   theme_minimal() +

@@ -30,19 +30,29 @@ source("auxiliary/model_tune_plsda.R")
 source("auxiliary/model_build_classification.R")
 source("auxiliary/model_performance_classification.R")
 source("auxiliary/confusion_matrices.R")
-source("auxiliary/plsda_varImp.R")
-source("auxiliary/lda_varImp.R")
+source("auxiliary/pls_coefficients.R")
+source("auxiliary/pls_vip.R")
 
 #'------------------------------------------------------------------------------
 #' @Working_directory
 #-------------------------------------------------------------------------------
 
-# Select the root_folder to read data and export results
+# Select the root_path to read data and export results
+root_path <- getwd()
 
-#JAG
-#root_path <- "C:/Users/jog4076/Downloads"
-#DW
-root_path <- "/n/netscratch/davis_lab/Everyone/dwhite/herbarium-spectra"
+## Set the path to export results, ensuring it is relative to root_path
+output_path <- file.path(root_path, "out_classify")
+# Ensure the output folder exists
+if (!dir.exists(output_path)) {
+  dir.create(output_path, recursive = TRUE)
+}
+
+## Set path for split and segments files
+split_path <- file.path(root_path, "out_classify")
+# Ensure the split folder exists
+if (!dir.exists(split_path)) {
+  dir.create(split_path, recursive = TRUE)
+}
 
 #'------------------------------------------------------------------------------
 #' @Read-Information
@@ -50,13 +60,6 @@ root_path <- "/n/netscratch/davis_lab/Everyone/dwhite/herbarium-spectra"
 
 # Select the file of interest
 frame <- fread("data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")
-#frame <- fread("data/dataKothari_pressed_unavg_ref5nm_450-2400.csv")
-frame <- frame[!is.na(leafKg_m2),]
-
-#species_vector <- c("Quercus rubra", "Populus tremuloiddes", "Populus grandidentata", "Fagus grandifolia", "Betula populifolia", "Betula papyrifera", "Agonis flexuosa", "Acer saccharum", "Acer saccharinum", "Acer rubrum")
-
-# Subset the data.table based on the species vector
-#frame <- frame[species %in% species_vector]
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape
@@ -68,14 +71,16 @@ meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","sp
                   "genus","family","class","order",
                   "ddmmyyScanned", "absoluteAge", "herbQuality",
                   "damage", "glue", "leafStage", "greenIndex")]
-
 meta$sample <- 1:nrow(meta)
 
-species <- frame$genus
+# set taxonomic level for classification: frame$species or frame$genus
+species <- frame$species
+
+# remove space
 species <- sub(" ", "_", species)
 
-spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
-
+# define spectra
+spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
 
 #-------------------------------------------------------------------------------
 #' @Data-split
@@ -84,8 +89,8 @@ spectra <- frame[, .SD, .SDcols = 22:ncol(frame)]
 # Select the number of specimens per species to include in training
 split <- data_split(meta = meta)
 
-# Export for record
-saveRDS(split, paste0(root_path, "/classification_split.rds"))
+# Export for record, reload for subsequent runs
+saveRDS(split, paste0(split_path, "/classification_split.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Segments
@@ -99,10 +104,13 @@ segments <- pbmclapply(X = 1:iterations,
                        meta = meta,
                        split = split,
                        mc.set.seed = TRUE,
-                       mc.cores = 1) # If windows = 1
+                       mc.cores = 5) # If windows = 1
 
 # Export for record
-saveRDS(segments, paste0(root_path, "/classification_segments.rds"))
+saveRDS(segments, paste0(split_path, "/classification_segments.rds"))
+
+# Reload for comparability
+#segments <- readRDS(paste0(split_path, "/classification_segments.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Model_tune
@@ -120,7 +128,7 @@ opt_models <- model_tune_plsda(meta = meta,
                                species = species,
                                spectra = spectra,
                                ncomp_max = ncomp_max,
-                               threads = 5) # If windows = 1, mac 2 same as 6
+                               threads = 20) # If windows = 1, mac 2 same as 6
 
 
 # Filter for accuracy and accuracy SD metrics
@@ -144,15 +152,12 @@ ncomp <- as.integer(which(mean_accuracy >= accuracy_threshold)[1])
 # Print ncomp summary
 cat(
   "The highest mean accuracy:", max_accuracy, "at component", max_accuracy_component, "\n",
-  "Optimal component accuracy within one SD:", accuracy_threshold, "at component", ncomp, "\n",
-  file = "classification_plsda_ncomp.txt", append = TRUE
+  "Optimal component accuracy within one SD:", accuracy_threshold, "at component", ncomp, "\n", "Used", ncomp,
+  file = paste0(output_path,"/ncomp_plsda.txt"), append = TRUE
 )
 
-# Identify the lowest component within one SD of the highest accuracy
-ncomp <- as.integer(which.max(mean_accuracy))
-
 # Export for record and figures
-fwrite(opt_models, paste0(root_path, "/classification_plsda_opt_comp_models.csv"))
+fwrite(opt_models, paste0(output_path, "/opt_comp_models_plsda.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Final_model for prediction
@@ -165,19 +170,10 @@ models_plsda <- model_build_plsda(meta = meta,
                                   species = species,
                                   spectra = spectra,
                                   ncomp = ncomp,
-                                  threads = 5) # If windows = 1
-
-# Based on LDA
-models_lda <- model_build_lda(meta = meta,
-                              split = split,
-                              segments = segments,
-                              species = species,
-                              spectra = spectra,
-                              threads = 5) # If windows = 1
+                                  threads = 20) # If windows = 1
 
 # save models
-#saveRDS(models_plsda, "classification_plsda_models.rds")
-#saveRDS(models_lda, "classification_lda_models.rds")
+#saveRDS(models_plsda, output_path, "classification_plsda_models.rds")
 
 #-------------------------------------------------------------------------------
 #' @Performance-training
@@ -190,7 +186,7 @@ performance_plsda_training <- model_performance_plsda(meta_split = meta[split, ]
                                                       spectra_split = spectra[split, ],
                                                       models = models_plsda,
                                                       ncomp = ncomp,
-                                                      threads = 5)
+                                                      threads = 20)
 
 #generate inverse of numeric vector for species split
 inverse_split <- setdiff(1:length(species), split)
@@ -200,42 +196,27 @@ performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ]
                                                      spectra_split = spectra[!split, ],
                                                      models = models_plsda,
                                                      ncomp = ncomp,
-                                                     threads = 5)
-
-performance_lda_training <- model_performance_lda(meta_split = meta[split, ],
-                                                  species_split = species[split], 
-                                                  spectra_split = spectra[split, ],
-                                                  models = models_lda,
-                                                  threads = 5)
-
-performance_lda_testing <- model_performance_lda(meta_split = meta[!split, ],
-                                                  species_split = species[inverse_split], 
-                                                  spectra_split = spectra[!split, ],
-                                                  models = models_lda,
-                                                  threads = 5)
-
+                                                     threads = 20)
 # Export for record
-saveRDS(performance_plsda_training, paste0(root_path, "/performance_plsda_training.rds"))
-saveRDS(performance_plsda_testing, paste0(root_path, "/performance_plsda_testing.rds"))
-saveRDS(performance_lda_training, paste0(root_path, "/performance_lda_training.rds"))
-saveRDS(performance_lda_testing, paste0(root_path, "/performance_lda_testing.rds"))
+saveRDS(performance_plsda_training, paste0(output_path, "/performance_plsda_training.rds"))
+saveRDS(performance_plsda_testing, paste0(output_path, "/performance_plsda_testing.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Model_coefficients
 #-------------------------------------------------------------------------------
 
+coefficients <- plsda_coefficients(models = models_plsda,
+                                   ncomp = ncomp)
+
+fwrite(coefficients, paste0(output_path, "/coefficients_plsda.csv"))
+
 #-------------------------------------------------------------------------------
 #' @Model_VIP
 #-------------------------------------------------------------------------------
 
-vip_plsda <- plsda_varImp(models = models_plsda)
+vip_plsda <- plsda_vip(models = models_plsda)
 
-fwrite(vip, paste0(root_path, "/classification_plsda_varImp.csv"))
-
-vip_lda <- lda_varImp(models = models_lda)
-
-fwrite(vip, paste0(root_path, "/classification_lda_varImp.csv"))
-
+fwrite(vip_plsda, paste0(output_path, "/varImp_plsda.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Confusion-Matrices
@@ -254,22 +235,7 @@ CM_plsda_testing <- confusion_matrices_plsda_dw(meta_split = meta[!split,],
                                             models = models_plsda,
                                             ncomp = ncomp,
                                             threads = 2)
-
-CM_lda_training <- confusion_matrices_lda_dw(meta_split = meta[split,],
-                                         species_split = species[split], 
-                                         spectra_split = spectra[split, ],
-                                         models = models_lda,
-                                         threads = 2)
-
-CM_lda_testing <- confusion_matrices_lda_dw(meta_split = meta[!split,],
-                                        species_split = species[inverse_split], 
-                                        spectra_split = spectra[!split, ],
-                                        models = models_lda,
-                                        threads = 2)
-
 # Export
-saveRDS(CM_plsda_training, paste0(root_path, "/CM_plsda_training.rds"))
-saveRDS(CM_plsda_testing, paste0(root_path, "/CM_plsda_testing.rds"))
-saveRDS(CM_lda_training, paste0(root_path, "/CM_lda_training.rds"))
-saveRDS(CM_lda_testing, paste0(root_path, "/CM_lda_testing.rds"))
+saveRDS(CM_plsda_training, paste0(output_path, "/CM_plsda_training.rds"))
+saveRDS(CM_plsda_testing, paste0(output_path, "/CM_plsda_testing.rds"))
 

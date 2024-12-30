@@ -37,7 +37,7 @@ huh <- fread("results/HUH/ref/HUH_450-2400/pls_HUH_testing_obs-pred.csv")
 
 # Group by 'accession_leaf' for HUH
 averaged_data_huh <- huh %>%
-  group_by(accession_leaf) %>%
+  group_by(accession) %>%
   summarise(
     # Summarize all numerical columns with their mean
     across(where(is.numeric), \(x) mean(x, na.rm = TRUE)),
@@ -48,7 +48,7 @@ averaged_data_huh <- huh %>%
 
 ##################
 ### Kothari Data ref full (or refnorm full)
-kothari <- fread("results/Kothari/ref/Kothari_450-2400/pls_Kothari_training_obs-pred.csv")
+kothari <- fread("results/Kothari/ref/Kothari_450-2400/pls_Kothari_testing_obs-pred.csv")
 
 # Filter Kothari to include only species present in the HUH dataset
 huh_species <- unique(huh$species)
@@ -135,7 +135,7 @@ kothari_plot <- ggplot(averaged_data_kothari, aes(x = predicted_mean, y = observ
   scale_color_manual(values = species_colors) +
   custom_theme +
   coord_fixed(ratio = 1, xlim = c(0, 0.225), ylim = c(0, 0.225)) +
-  annotate("text", x = 0.01, y = 0.21, label = "Test: Validation\nModel: pressed\nSpectra: pressed\nTransform: reflectance", size = 2.5, hjust = 0)
+  annotate("text", x = 0.01, y = 0.21, label = "Test: validation\nModel: pressed\nSpectra: pressed\nTransform: reflectance", size = 2.5, hjust = 0)
 
 
 ##################
@@ -160,7 +160,7 @@ huh_plot <- ggplot(averaged_data_huh, aes(x = predicted_mean, y = observed)) +
   ) +
   guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
   coord_fixed(ratio = 1, xlim = c(0, 0.225), ylim = c(0, 0.225)) +
-  annotate("text", x = 0.01, y = 0.21, label = "Test: Validation\nModel: herbarium\nSpectra: herbarium\nTransform: reflectance", size = 2.5, hjust = 0)
+  annotate("text", x = 0.01, y = 0.21, label = "Test: validation\nModel: herbarium\nSpectra: herbarium\nTransform: reflectance", size = 2.5, hjust = 0)
 
 ##################
 ### MPSH Plot
@@ -173,7 +173,7 @@ mpsh_plot <- ggplot(averaged_data_mpsh, aes(x = predicted_mean, y = observed)) +
   scale_color_manual(values = species_colors) +
   custom_theme +
   coord_fixed(ratio = 1, xlim = c(0, 0.225), ylim = c(0, 0.225)) +
-  annotate("text", x = 0.01, y = 0.21, label = "Test: Transfer\nModel: pressed\nSpectra: herbarium\nTransform: CWT", size = 2.5, hjust = 0)
+  annotate("text", x = 0.01, y = 0.21, label = "Test: transfer\nModel: pressed\nSpectra: herbarium\nTransform: CWT", size = 2.5, hjust = 0)
 
 
 ##################
@@ -187,7 +187,7 @@ mhsp_plot <- ggplot(averaged_data_mhsp, aes(x = predicted_mean, y = observed)) +
   scale_color_manual(values = species_colors) +
   custom_theme +
   coord_fixed(ratio = 1, xlim = c(0, 0.225), ylim = c(0, 0.225)) +
-  annotate("text", x = 0.01, y = 0.21, label = "Test: Transfer\nModel: herbarium\nSpectra: pressed\nTransform: CWT", size = 2.5, hjust = 0)
+  annotate("text", x = 0.01, y = 0.21, label = "Test: transfer\nModel: herbarium\nSpectra: pressed\nTransform: CWT", size = 2.5, hjust = 0)
 
 
 ##################
@@ -200,10 +200,6 @@ combined_plot <- wrap_plots(
 
 # Save the combined plot to a PDF
 ggsave("results/Fig2_LMA-biplots.pdf", plot = combined_plot, width = 8.5, height = 6.5)
-
-
-
-
 
 
 
@@ -311,7 +307,6 @@ vip_plot <- wrap_plots(plots, ncol = 1, guides = "collect") +
 
 # Save the combined plot
 ggsave("results/Fig3_VIP.pdf", plot = vip_plot, width = 8.5, height = 9)
-
 
 #-------------------------------------------------------------------------------
 #' @End
