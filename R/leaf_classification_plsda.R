@@ -87,17 +87,20 @@ spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
 #-------------------------------------------------------------------------------
 
 # Select the number of specimens per species to include in training
-split <- data_split(meta = meta)
+#split <- data_split(meta = meta)
 
 # Export for record, reload for subsequent runs
-saveRDS(split, paste0(split_path, "/classification_split.rds"))
+#saveRDS(split, paste0(split_path, "/classification_split.rds"))
+
+# Reload for comparability
+split <- readRDS(paste0(split_path, "/classification_split.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Segments
 #-------------------------------------------------------------------------------
 
 # Select a spectral measurement per specimen
-iterations <- 1000 # 1000
+iterations <- 3 # 1000
 
 segments <- pbmclapply(X = 1:iterations,
                        FUN = data_segments,
@@ -107,10 +110,10 @@ segments <- pbmclapply(X = 1:iterations,
                        mc.cores = 5) # If windows = 1
 
 # Export for record
-saveRDS(segments, paste0(split_path, "/classification_segments.rds"))
+#saveRDS(segments, paste0(split_path, "/classification_segments.rds"))
 
 # Reload for comparability
-#segments <- readRDS(paste0(split_path, "/classification_segments.rds"))
+segments <- readRDS(paste0(split_path, "/classification_segments.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Model_tune
@@ -147,12 +150,15 @@ max_accuracy_component <- which.max(mean_accuracy)
 accuracy_threshold <- max_accuracy - mean_accuracy_sd[max_accuracy_component]
 
 # Identify the lowest component within one SD of the highest accuracy
-ncomp <- as.integer(which(mean_accuracy >= accuracy_threshold)[1])
+ncomp_sd <- as.integer(which(mean_accuracy >= accuracy_threshold)[1])
+
+#ncomp <- ncomp_sd
+ncomp <- max_accuracy_component
 
 # Print ncomp summary
 cat(
   "The highest mean accuracy:", max_accuracy, "at component", max_accuracy_component, "\n",
-  "Optimal component accuracy within one SD:", accuracy_threshold, "at component", ncomp, "\n", "Used", ncomp,
+  "Optimal component accuracy within one SD:", accuracy_threshold, "at component", ncomp_sd, "\n", "used:", ncomp, 
   file = paste0(output_path,"/ncomp_plsda.txt"), append = TRUE
 )
 
@@ -208,7 +214,7 @@ saveRDS(performance_plsda_testing, paste0(output_path, "/performance_plsda_testi
 coefficients <- plsda_coefficients(models = models_plsda,
                                    ncomp = ncomp)
 
-fwrite(coefficients, paste0(output_path, "/coefficients_plsda.csv"))
+saveRDS(coefficients, paste0(output_path, "/coefficients_plsda.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Model_VIP
