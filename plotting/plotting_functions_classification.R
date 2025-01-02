@@ -26,26 +26,29 @@ library(reshape2)
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
-#' @Classification-Performance-Table-S3
+#' @Classification-Performance-Table-2
 #-------------------------------------------------------------------------------
+
+huh_sp10 <- readRDS("out_classify/performance_plsda_testing_sp10.rds")
 
 library(dplyr)
 
 # Define the file paths and metadata
+
 files <- list(
   list(path = "out_classify/performance_lda_testing_sp10.rds", dataset = "Herbarium", rank = "species", model = "LDA", samples = "10spp"),
-  list(path = "out_classify/performance_plsda_testing_sp10.rds", dataset = "Herbarium", rank = "species", model = "PLSDA", samples = "10spp"),
-  list(path = "out_classify_genus/performance_plsda_testing_sp10.rds", dataset = "Herbarium", rank = "genus", model = "PLSDA", samples = "6genera"),
-  list(path = "out_classify_genus/performance_lda_testing_sp10.rds", dataset = "Herbarium", rank = "genus", model = "LDA", samples = "6genera"),
-  list(path = "out_classify/performance_lda_testing.rds", dataset = "Herbarium", rank = "species", model = "LDA", samples = "25spp"),
-  list(path = "out_classify/performance_plsda_testing.rds", dataset = "Herbarium", rank = "species", model = "PLSDA", samples = "25spp"),
-  list(path = "out_classify_genus/performance_plsda_testing.rds", dataset = "Herbarium", rank = "genus", model = "PLSDA", samples = "17genera"),
-  list(path = "out_classify_genus/performance_lda_testing.rds", dataset = "Herbarium", rank = "genus", model = "LDA", samples = "17genera"),
-  list(path = "out_classify_kot/performance_plsda_testing_sp10.rds", dataset = "Pressed", rank = "species", model = "PLSDA", samples = "10spp"),
+  list(path = "out_classify/performance_plsda_testing_sp10.rds", dataset = "Herbarium", rank = "species", model = "PLS-DA", samples = "10spp"),
   list(path = "out_classify_kot/performance_lda_testing_sp10.rds", dataset = "Pressed", rank = "species", model = "LDA", samples = "10spp"),
-  list(path = "out_classify_kot_LatinGenus/performance_plsda_testing_sp10.rds", dataset = "Pressed", rank = "genus", model = "PLSDA", samples = "6genera"),
-  list(path = "out_classify_kot_LatinGenus/performance_lda_testing_sp10.rds", dataset = "Pressed", rank = "genus", model = "LDA", samples = "6genera")
-)
+  list(path = "out_classify_kot/performance_plsda_testing_sp10.rds", dataset = "Pressed", rank = "species", model = "PLS-DA", samples = "10spp"),
+  list(path = "out_classify_genus/performance_lda_testing_sp10.rds", dataset = "Herbarium", rank = "genus", model = "LDA", samples = "6genera"),
+  list(path = "out_classify_genus/performance_plsda_testing_sp10.rds", dataset = "Herbarium", rank = "genus", model = "PLS-DA", samples = "6genera"),
+  list(path = "out_classify_kot_LatinGenus/performance_lda_testing_sp10.rds", dataset = "Pressed", rank = "genus", model = "LDA", samples = "6genera"),
+  list(path = "out_classify_kot_LatinGenus/performance_plsda_testing_sp10.rds", dataset = "Pressed", rank = "genus", model = "PLS-DA", samples = "6genera"),
+  list(path = "out_classify/performance_lda_testing.rds", dataset = "Herbarium", rank = "species", model = "LDA", samples = "25spp"),
+  list(path = "out_classify/performance_plsda_testing.rds", dataset = "Herbarium", rank = "species", model = "PLS-DA", samples = "25spp"),
+  list(path = "out_classify_genus/performance_lda_testing.rds", dataset = "Herbarium", rank = "genus", model = "LDA", samples = "17genera"),
+  list(path = "out_classify_genus/performance_plsda_testing.rds", dataset = "Herbarium", rank = "genus", model = "PLS-DA", samples = "17genera")
+   )
 
 # Initialize an empty data frame for combined statistics
 combined_stats <- data.frame()
@@ -58,6 +61,9 @@ for (file_info in files) {
   # Convert to data frame
   perf_df <- as.data.frame(perf$performance)
   
+  # Check if ncomp exists in the data frame
+  has_ncomp <- "ncomp" %in% colnames(perf_df)
+  
   # Calculate summary statistics
   summary_stats <- perf_df %>%
     summarise(
@@ -66,14 +72,14 @@ for (file_info in files) {
       mean_precision = mean(Precision, na.rm = TRUE),
       sd_precision = sd(Precision, na.rm = TRUE),
       mean_balanced_accuracy = mean(`Balanced Accuracy`, na.rm = TRUE),
-      sd_balanced_accuracy = sd(`Balanced Accuracy`, na.rm = TRUE)
+      sd_balanced_accuracy = sd(`Balanced Accuracy`, na.rm = TRUE),
+      Ncomponents = if (has_ncomp) mean(ncomp, na.rm = TRUE) else NA_real_  # Handle missing ncomp
     ) %>%
     mutate(
       Dataset = file_info$dataset,
       Rank = file_info$rank,
       Model = file_info$model,
-      Samples = file_info$samples,
-      ncomp = ncomp
+      Samples = file_info$samples
     )
   
   # Append to the combined stats table
@@ -82,12 +88,20 @@ for (file_info in files) {
 
 # Select and arrange columns in the specified order
 final_table <- combined_stats %>%
-  select(Rank, Dataset, Model, Samples, mean_accuracy, sd_accuracy, mean_precision, sd_precision, mean_balanced_accuracy, sd_balanced_accuracy)
+  select(Rank, Dataset, Model, Samples, mean_accuracy, sd_accuracy, mean_precision, sd_precision, mean_balanced_accuracy, sd_balanced_accuracy, Ncomponents)
+
+# Combine mean and SD into a single column
+final_table <- combined_stats %>%
+  mutate(
+    Accuracy = sprintf("%.2f ± %.2f", mean_accuracy, sd_accuracy),
+    Precision = sprintf("%.2f ± %.2f", mean_precision, sd_precision),
+    `Balanced Accuracy` = sprintf("%.2f ± %.2f", mean_balanced_accuracy, sd_balanced_accuracy)
+  ) %>%
+  select(Dataset, Rank, Model, Samples,Ncomponents, Accuracy, Precision, `Balanced Accuracy`, )
+
 
 # Save the final table to a CSV file
-write.csv(final_table, "Table_classification_performance.csv", row.names = FALSE)
-
-
+write.csv(final_table, "Figures_Tables/Table2_classification_performance_maxAcc.csv", row.names = FALSE)
 
 
 
@@ -176,7 +190,7 @@ vipsp <- ggplot(vip_stats, aes(x = Wavelength)) +
   facet_wrap(~ Species, scales = "free_y", ncol = 4)
 
 # Save the plot
-ggsave("vip_plot_herb_plsda_25spp.pdf", plot = vipsp, width = 8.5, height = 9.5)
+ggsave("Figures_Tables/Fig-S4_VIP-herb-plsda-25spp.png", plot = vipsp, width = 8.5, height = 9.5, dpi=300)
 
 
 
@@ -190,12 +204,12 @@ library(gridExtra)
 
 # Define the file paths and metadata
 file_info <- list(
-  list(path = "out_classify/varImp_plsda_sp10.csv", dataset = "Herbarium", rank = "species", model = "PLSDA", samples = "10 spp"),
-  list(path = "out_classify_kot/varImp_plsda_sp10.csv", dataset = "Pressed", rank = "species", model = "PLSDA", samples = "10 spp"),
-  list(path = "out_classify_genus/varImp_plsda_sp10.csv", dataset = "Herbarium", rank = "genus", model = "PLSDA", samples = "6 genera"),
-  list(path = "out_classify_kot_LatinGenus/varImp_plsda_sp10.csv", dataset = "Pressed", rank = "genus", model = "PLSDA", samples = "6 genera"),
-  list(path = "out_classify/varImp_plsda.csv", dataset = "Herbarium", rank = "species", model = "PLSDA", samples = "25 spp"),
-  list(path = "out_classify_genus/varImp_plsda.csv", dataset = "Herbarium", rank = "genus", model = "PLSDA", samples = "17 genera")
+  list(path = "out_classify/varImp_plsda_sp10.csv", dataset = "Herbarium", rank = "species", model = "PLS-DA", samples = "10 spp"),
+  list(path = "out_classify_kot/varImp_plsda_sp10.csv", dataset = "Pressed", rank = "species", model = "PLS-DA", samples = "10 spp"),
+  list(path = "out_classify_genus/varImp_plsda_sp10.csv", dataset = "Herbarium", rank = "genus", model = "PLS-DA", samples = "6 genera"),
+  list(path = "out_classify_kot_LatinGenus/varImp_plsda_sp10.csv", dataset = "Pressed", rank = "genus", model = "PLS-DA", samples = "6 genera"),
+  list(path = "out_classify/varImp_plsda.csv", dataset = "Herbarium", rank = "species", model = "PLS-DA", samples = "25 spp"),
+  list(path = "out_classify_genus/varImp_plsda.csv", dataset = "Herbarium", rank = "genus", model = "PLS-DA", samples = "17 genera")
 )
 
 # Function to create a plot for a given file
@@ -256,15 +270,11 @@ for (i in c(6)) { # c(4, 6)
 }
 
 # Arrange and save the plots, 7 x 9 layout
-pdf("Fig-S_vip_classification_pressed_vs_herb.pdf", width = 7, height = 9)
+pdf("Figures_Tables/Fig-S5_VIP-pressed-herb.png", width = 7, height = 9, dpi=300)
 
 # First page with six plots
 grid.arrange(grobs = plots[1:6], ncol = 1)
 dev.off()
 
-# Second page with two plots, 8 x 5 layout
-#pdf("vip_plots2.pdf", width = 8, height = 4)
-#grid.arrange(grobs = plots[5:6], ncol = 1)
-#dev.off()
 
 

@@ -39,7 +39,7 @@ model_build_plsda <- function(meta,
                    data = sub_frame,
                    method = "pls",
                    trControl = ctrl,
-                   preProcess = c("center"),
+                   preProcess = NULL,
                    tuneGrid = expand.grid(ncomp = ncomp),
                    metric = "Accuracy",
                    maxit = 10000)
@@ -105,7 +105,7 @@ model_build_lda <- function(meta,
                    data = sub_frame,
                    method = "lda",
                    trControl = ctrl,
-                   preProcess = c("center"),
+                   preProcess = NULL,
                    metric = "Accuracy",
                    maxit = 10000)
     

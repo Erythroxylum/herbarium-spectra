@@ -38,25 +38,40 @@ plsda_coefficients <- function(models, ncomp) {
   # Number of models (iterations)
   iterations <- length(models)
   
-  # Extract coefficients for each model
-  coefficients <- lapply(1:iterations, function(i) {
+  # Extract coefficients, xmeans, and ymeans for each model
+  results <- lapply(1:iterations, function(i) {
     # Extract coefficients for the desired number of components
     coef_matrix <- models[[i]]$finalModel$coefficients[, , ncomp]
+    xmeans <- models[[i]]$finalModel$Xmeans
+    ymeans <- models[[i]]$finalModel$Ymeans
     
-    # Convert to a data.table
+    # Convert coefficients to a data.table
     coef_dt <- as.data.table(as.matrix(coef_matrix))
     coef_dt[, Predictor := rownames(coef_matrix)]  # Add predictor names as a column
     coef_dt[, Iteration := i]  # Add iteration identifier
     
-    return(coef_dt)
+    # Return a list for each iteration
+    list(
+      coefficients = coef_dt,
+      xmeans = data.table(Iteration = i, Predictor = names(xmeans), Xmean = xmeans),
+      ymeans = data.table(Iteration = i, Class = colnames(coef_matrix), Ymean = ymeans)
+    )
   })
   
-  # Combine all iterations into one data.table
-  coefficients_combined <- rbindlist(coefficients, use.names = TRUE, fill = TRUE)
+  # Combine results across iterations
+  coefficients_combined <- rbindlist(lapply(results, `[[`, "coefficients"), use.names = TRUE, fill = TRUE)
+  xmeans_combined <- rbindlist(lapply(results, `[[`, "xmeans"), use.names = TRUE, fill = TRUE)
+  ymeans_combined <- rbindlist(lapply(results, `[[`, "ymeans"), use.names = TRUE, fill = TRUE)
   
-  # Return the combined coefficients table
-  return(coefficients_combined)
+  # Return as a list
+  return(list(
+    coefficients = coefficients_combined,
+    xmeans = xmeans_combined,
+    ymeans = ymeans_combined
+  ))
 }
+
+
 
 #-------------------------------------------------------------------------------
 # Extract the LDA coefficients

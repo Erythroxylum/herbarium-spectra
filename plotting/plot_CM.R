@@ -13,30 +13,22 @@
 # Load necessary libraries
 library(ggplot2)
 library(reshape2)
-library(ggplot2)
 library(ggtree)
 library(ape)
 library(data.table)
 library(patchwork)
 library(dplyr)
-
-#-------------------------------------------------------------------------------
-#' @Plot-Confusion-Matrices_PLSDA-25sp_Fig3
-#-------------------------------------------------------------------------------
-
-#### With phylogeny
-
-library(ggplot2)
-library(ggtree)
-library(ape)
-library(data.table)
-library(patchwork)
 library(phytools)
 
+#-------------------------------------------------------------------------------
+#' @Plot-Confusion-Matrices_PLSDA-25sp_Fig5
+#-------------------------------------------------------------------------------
+
+## load phylogeny
 # Load classification confusion matrix output
 CM_data <- readRDS("out_classify/CM_plsda_testing.rds")
 
-# Read in Tree (optional)
+# Read in Tree
 phylo <- read.tree("herbarium-predictors-analysis/phylogram_pd_TimeTree5.tre")
 
 # Set data name for plot header
@@ -107,7 +99,7 @@ cm_plot <- ggplot(data = conf_mean_long, aes(x = Prediction, y = Reference, fill
     panel.grid.minor = element_line(color = "gray95"),  # Light minor grid lines
     panel.border = element_blank()  # Remove border
   ) +
-  ggtitle(paste(file_name, "- Mean Accuracy:", round(mean_accuracy, 3))) +  # Dynamically add mean accuracy to title
+  #ggtitle(paste(file_name, "- Mean Accuracy:", round(mean_accuracy, 3))) +  # Dynamically add mean accuracy to title
   labs(y = NULL, x = "Predicted Identity")
 
 
@@ -134,38 +126,13 @@ tree_plot <- ggtree(phylo) +
     axis.title.y = element_text(size = 10, angle = 90, hjust = 0.5),  # Add y-axis label
     panel.grid = element_blank()
   ) +
-  labs(y = "True Identity", x = "Millions of Years Ago")  # Add axis labels
+  labs(y = "True Identity", x = "M Years")  # Add axis labels
 
 
-# Combine the phylogeny and confusion matrix using patchwork
+######
+##Combine the phylogeny and confusion matrix using patchwork
 combined_plot <- tree_plot + cm_plot + plot_layout(widths = c(1.5, 4)) 
 
 # Save the combined plot
-ggsave(paste(file_name, " with phylogram.pdf", sep = ""), plot = combined_plot, width = 10, height = 7)
-
-
-
-################################
-### Plot proportional ultrametric tree 
-
-# (optional) Remove branch lengths for cladogram
-clado <- phylo
-clado$edge.length <- NULL
-
-# Add the phylogeny plot without tip labels
-tree_plot_clado <- ggtree(clado) +
-  theme_minimal() +
-  theme(
-    axis.text = element_blank(),
-    axis.title.y = element_text(size = 10, angle = 90, hjust = 0.5),
-    panel.grid = element_blank()
-  ) +
-  labs(y = "True Identity")
-
-# Combine the phylogeny and confusion matrix using patchwork
-combined_plot <- tree_plot_clado + cm_plot + plot_layout(widths = c(1.5, 4)) 
-
-# Save the combined plot
-ggsave(paste(file_name, " with cladogram.pdf", sep = ""), plot = combined_plot, width = 10, height = 7)
-
+ggsave(paste("Figures_Tables/Fig5_", file_name, " with phylogram.png", sep = ""), plot = combined_plot, width = 10, height = 7, dpi=300)
 

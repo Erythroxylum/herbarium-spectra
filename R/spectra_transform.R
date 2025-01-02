@@ -20,8 +20,8 @@ root_path <- getwd()
 #-------------------------------------------------------------------------------
 
 # Read database
-data <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_noResample_350-2500.csv"))
-data <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf563_norm_350-2500.csv"))
+data <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_noResample_350-2500.csv"))
+data <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_norm_350-2500.csv"))
 
 # Get meta and spectra
 meta <- data[, .SD, .SDcols = 1:22]
@@ -55,7 +55,7 @@ plot(as.numeric(colnames(spectra_resampled)),
 spectra_ref_export <- spectra_resampled[, .SD, .SDcols = 21:411]
 
 fwrite(cbind(meta, spectra_ref_export), 
-       paste0(root_path, "/data/dataHUH2024_sp25leaf563_ref5nm_norm_450-2400.csv"))
+       paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv"))
 
 # Transform spectra
 spectra_transformed <- cwt(t = spectra_resampled, 
@@ -74,7 +74,7 @@ spectra_cwt_export <- spectra_transformed[, .SD, .SDcols = 21:411]
 
 # Export
 fwrite(cbind(meta, spectra_cwt_export), 
-       paste0(root_path, "/data/dataHUH2024_sp25leaf563_cwt5nm_norm_450-2400.csv"))
+       paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv"))
 
 
 
@@ -140,4 +140,4 @@ kothari_cwt_export <- spectra_transformed[, .SD, .SDcols = 19:409]
 
 # Export
 fwrite(cbind(meta, kothari_cwt_export), 
-       paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv"))
+       paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv"))

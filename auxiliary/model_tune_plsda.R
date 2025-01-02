@@ -40,7 +40,7 @@ model_tune_plsda <- function(meta,
                    data = sub_frame,
                    method = "pls",
                    trControl = ctrl,
-                   preProcess = c("center"),
+                   preProcess = NULL,
                    tuneGrid = expand.grid(ncomp = 1:ncomp_max),
                    metric = "Accuracy",
                    maxit = 10000)
