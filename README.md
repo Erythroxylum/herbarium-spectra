@@ -81,11 +81,13 @@ Script to predict values for other traits modeled by Kothari et al. 2023 (for Fi
 **`R/prediction_from_coefficients_other_traits.R`**
 
 
-### Plotting scripts
+## Plotting scripts
 
 - **`plotting/plotting_functions_traits.R`**
 
 Reflectance, coefficients and VIP plots (Fig. 3), Trait observed vs predicted biplots (Fig. 4), violin plots of predicted vs observed trait values (Fig. 5)
+
+
 
 
 ---
@@ -100,6 +102,8 @@ The main scripts for trait estimation is:
 These scripts take the **herbarium dataset** as input, set the metadata accordingly, and run the auxiliary functions to classify at different taxonomic levels using plsda or lda. This can be redirected to classify at the genus or other taxonomic level, or to subset species for direct comparison with the 10 spp. PLS-DA model in Kothari et al. 2023.
 
 #### Data Output  
+
+The scripts generate the following files: 
 - **`classification_split.rds`**  Testing and validation sample splits.  
 - **`classification_segments.rds`**  Dataset iterations selecting random spectra per individual, based on the `accession` metadata column.  
 - **`ncomp_plsda.txt`**  Printed output of components at max highest accuracy, one-sigma method, and value input for final model.   
@@ -111,14 +115,16 @@ These scripts take the **herbarium dataset** as input, set the metadata accordin
 - **`CM_*.rds`** Data necessary for constructing confusion matrices using `plotting/plotting_functions_classification.R`.
 
 
-### Plotting scripts
+## Plotting scripts
 - **`plotting/plotting_functions_classification.R`**
 
 Classification performance (Table 3), Confusion matrices (Fig. 6), and VIP plots (Fig. S3, S4).
 
----
 
 ## Analyses of herbarium factors on classification model success
+
+- **`R/phylogenetic_distance.R`**
+Phylogenetic diversity metrics and nearest taxon distances are calculated and table is output to metadata using the phylogenetic distances script.
 
 - **`R/prediction_classification_analysis-factors_plotting.R`**
 
@@ -126,8 +132,6 @@ Scripts for predicting classes based on PLS-DA models generated with `R/leaf_cla
 The script then contains various plotting functions for the analyses of herbarium factors on classification probabilities and accuracy (Fig. 7, Fig. 8, Table 3, Table S3, Fig. S5, Figs S7-S9).
 
 
-- **`R/phylogenetic_distance.R`**
-Phylogenetic diversity metrics and nearest taxon distances are calculated and table is output to metadata using the phylogenetic distances script.
 
 
 
