@@ -1,8 +1,11 @@
 # Herbarium-Spectra: Codes for spectral data processing, trait prediction, and taxonomic classification  
-Datasets and scripts for the **NPH paper**, "Seeing herbaria in a new light: leaf reflectance spectroscopy unlocks predictive trait and
+Datasets and scripts for the **New Phytologist submission**, "Seeing herbaria in a new light: leaf reflectance spectroscopy unlocks predictive trait and
 classification modeling in plant biodiversity collections"
 
 Codes written by J. Antonio Guzmán Q. and Dawson M. White
+
+Use of this code is restricted to non-commercial, academic purposes.  
+Please contact Erythroxylum for other use cases.
 
 ---
 
