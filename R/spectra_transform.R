@@ -8,6 +8,7 @@
 
 library(data.table)
 library(CWT)
+library(spectrolab)
 
 #'------------------------------------------------------------------------------
 #' @Working_directory

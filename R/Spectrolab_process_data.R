@@ -10,9 +10,9 @@
 #'------------------------------------------------------------------------------
 #' @Library
 #-------------------------------------------------------------------------------
-library("readr")
-library("spectrolab")
-library("shiny")
+library(readr)
+library(spectrolab)
+library(shiny)
 
 #'------------------------------------------------------------------------------
 #' @Working_directory
@@ -193,6 +193,8 @@ species_vector <- c("Quercus rubra", "Populus tremuloiddes", "Populus grandident
                     "Fagus grandifolia", "Betula populifolia", "Betula papyrifera", 
                     "Agonis flexuosa", "Acer saccharum", "Acer saccharinum", "Acer rubrum")
 meta_data$sp10 <- meta_data$species %in% species_vector
+
+# Green Index= Reflectance550 - Reflectance690 / Reflectance550 + Reflectance690
 
 # Calculate the green index from wavelengths 550 and 690
 greenIndex <- (values_df$`550` - values_df$`690`) / (values_df$`690` + values_df$`550`)

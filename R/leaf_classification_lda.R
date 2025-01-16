@@ -71,10 +71,13 @@ meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","sp
                   "genus","family","class","order",
                   "ddmmyyScanned", "absoluteAge", "herbQuality",
                   "damage", "glue", "leafStage", "greenIndex")]
+
+# create sample index column
 meta$sample <- 1:nrow(meta)
 
 # set taxonomic level for classification: frame$species or frame$genus
 species <- frame$species
+
 # remove space
 species <- sub(" ", "_", species)
 
@@ -124,7 +127,7 @@ models_lda <- model_build_lda(meta = meta,
                               spectra = spectra,
                               threads = 10) # If windows = 1
 
-# save models
+# save models (heavy)
 #saveRDS(models_lda, output_path, "classification_lda_models.rds")
 
 #-------------------------------------------------------------------------------

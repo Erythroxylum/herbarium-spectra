@@ -146,19 +146,16 @@ trait_predicted <- pred_coef(spectra, coef, bands)
 #' @Output_predictions
 #-------------------------------------------------------------------------------
 
-# Step 1: Compute mean and standard deviation across all iterations for each sample
+# Compute mean and standard deviation across all iterations for each sample
 trait_stats <- trait_predicted[, .(
-  predicted_trait_mean = rowMeans(.SD, na.rm = TRUE),          # Mean across all iterations
-  predicted_trait_sd = apply(.SD, 1, sd, na.rm = TRUE)         # Standard deviation across all iterations
+  predicted_trait_mean = rowMeans(.SD, na.rm = TRUE),
+  predicted_trait_sd = apply(.SD, 1, sd, na.rm = TRUE)
 )]
 
-# Step 2: Combine the computed statistics with metadata columns (1:22)
-# Convert to data.table for easier merging
+# Combine the computed statistics with metadata columns (1:22)
 results_trait <- cbind(frame[, 1:22], trait_stats) #huh
 #results_trait <- cbind(frame[, 1:59], trait_stats) #kot
 
-# Step 3: Save or view the resulting data.table
-# View the first few rows
 print(results_trait)
 
 # Optionally write to a CSV file

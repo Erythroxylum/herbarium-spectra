@@ -71,6 +71,8 @@ meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","sp
                   "genus","family","class","order",
                   "ddmmyyScanned", "absoluteAge", "herbQuality",
                   "damage", "glue", "leafStage", "greenIndex")]
+
+# create sample index column
 meta$sample <- 1:nrow(meta)
 
 # set taxonomic level for classification: frame$species or frame$genus

@@ -25,24 +25,70 @@ library(dplyr)
 #-------------------------------------------------------------------------------
 
 # Select the root_folder to read data and export results
-# Antonio
-root_path <- "C:/Users/jog4076/Downloads"
-# DW
-root_path <- "/Users/dawsonwhite/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/herbarium-spectra"
+
+root_path <- getwd()
 
 
 #-------------------------------------------------------------------------------
-#' @Spectra-Plots
+#' @Spectra-Plots-Fig-S2
 #-------------------------------------------------------------------------------
 
 # plot of mean, quartiles (50%, 90%), and coeff. var. for each species
 
+# Step 4: Create the plot
+plot <- ggplot(statistics_data, aes(x = wavelength)) +
+  # Add ribbons for distributions
+  geom_ribbon(aes(ymin = low_90, ymax = high_90, fill = "90% Distribution"), alpha = 0.5) +
+  geom_ribbon(aes(ymin = low_50, ymax = high_50, fill = "50% Distribution"), alpha = 0.9) +
+  # Add lines for mean and CV
+  geom_line(aes(y = mean, color = "Mean Reflectance"), size = 0.8) +
+  geom_line(aes(y = cv, color = "Coefficient of Variation (CV)"), size = 0.8) +
+  # Facet by species
+  facet_wrap(~ species, scales = "free_y", ncol = 4) +
+  # Labels and theme
+  labs(
+    x = "Wavelength (nm)",
+    y = "Reflectance / Coefficient of Variation",
+    color = "Lines",  # Legend title for lines
+    fill = "Shading"  # Legend title for ribbons
+  ) +
+  scale_fill_manual(values = c(
+    "90% Distribution" = "gray80",
+    "50% Distribution" = "gray50"
+  )) +
+  scale_color_manual(values = c(
+    "Mean Reflectance" = "black",
+    "Coefficient of Variation (CV)" = "red"
+  )) +
+  guides(
+    color = guide_legend(order = 1),  # Place lines first
+    fill = guide_legend(order = 2)   # Place shading second
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),  # Customize axis text
+    axis.text.y = element_text(size = 8),
+    axis.title = element_text(size = 10),  # Axis title size
+    strip.text = element_text(size = 7),   # Facet label size
+    legend.position = "bottom",           # Place legend at the bottom
+    legend.box = "horizontal",            # Arrange legend items horizontally
+    legend.title = element_blank(),       # Remove legend title
+    legend.text = element_text(size = 8)  # Legend text size
+  )
+
+# Print and save the plot
+print(plot)
+ggsave("reflectance_statistics_by_species_reordered_legend.pdf", plot = plot, width = 12, height = 8)
+
+
+####
+
 # Step 1: Read the CSV file
-specdf <- read.csv("../fullDataHUH2024_sp25leaf636_noResample_400-2300_noVNorm.csv")
+specdf <- read.csv("data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")
 
 # Step 2: Melt the data into long format
 melted_data <- specdf %>%
-  select(name, species, 21:ncol(specdf)) %>%
+  select(name, species, 23:ncol(specdf)) %>%
   pivot_longer(cols = starts_with("X"), names_to = "wavelength", values_to = "reflectance") %>%
   mutate(wavelength = as.numeric(sub("X", "", wavelength))) # Remove the 'X' and convert to numeric
 
@@ -59,28 +105,51 @@ statistics_data <- melted_data %>%
     .groups = "drop"
   )
 
-# Step 4: Plot using ggplot2
-ggplot(statistics_data, aes(x = wavelength)) +
-  geom_ribbon(aes(ymin = low_50, ymax = high_50), fill = "grey", alpha = 0.9) + # Quartiles as a band (50th percentiles)
-  geom_ribbon(aes(ymin = low_90, ymax = high_90), fill = "lightgrey", alpha = 0.5) + # Quartiles as a band (90th percentiles)
-  geom_line(aes(y = cv), color = "red", size = 0.8) + # CV line
-  geom_line(aes(y = mean), color = "black", size = 0.8) + # Mean line
-  facet_wrap(~ species, scales = "free_y") + # Separate plots by species
+# Step 4: Create the plot
+specplot <- ggplot(statistics_data, aes(x = wavelength)) +
+  # Add ribbons for distributions
+  geom_ribbon(aes(ymin = low_90, ymax = high_90, fill = "90% Distribution")) +
+  geom_ribbon(aes(ymin = low_50, ymax = high_50, fill = "50% Distribution")) +
+  # Add lines for mean and CV
+  geom_line(aes(y = mean, color = "Mean Reflectance"), size = 0.8) +
+  geom_line(aes(y = cv, color = "Coefficient of Variation (CV)"), size = 0.8) +
+  # Facet by species
+  facet_wrap(~ species, scales = "free_y", ncol = 4) +
+  # Labels and theme
   labs(
-    #title = "Reflectance Statistics by Wavelength",
     x = "Wavelength (nm)",
-    y = "Reflectance / Coefficient of Variation"
+    y = "Reflectance / Coefficient of Variation",
+    color = "Lines",  # Legend title for lines
+    fill = "Shading"  # Legend title for ribbons
+  ) +
+  scale_fill_manual(values = c(
+    "90% Distribution" = "gray80",
+    "50% Distribution" = "gray50"
+  )) +
+  scale_color_manual(values = c(
+    "Mean Reflectance" = "black",
+    "Coefficient of Variation (CV)" = "red"
+  )) +
+  guides(
+    color = guide_legend(order = 1),  # Place lines first
+    fill = guide_legend(order = 2)   # Place shading second
   ) +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.text = element_text(size = 8), # Reduce size of axis text
-    axis.title = element_text(size = 10), # Reduce size of axis titles
-    strip.text = element_text(size = 7), # Reduce size of facet labels
-    plot.title = element_text(size = 12, hjust = 0.5), # Reduce size of plot title
-    plot.margin = margin(1, 1, 1, 1) # Ensure plot doesn't cut off content
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),  # Customize axis text
+    axis.text.y = element_text(size = 8),
+    axis.title = element_text(size = 10),  # Axis title size
+    strip.text = element_text(size = 7),   # Facet label size
+    legend.position = "bottom",           # Place legend at the bottom
+    legend.box = "horizontal",            # Arrange legend items horizontally
+    legend.title = element_blank(),       # Remove legend title
+    legend.text = element_text(size = 8)  # Legend text size
   )
 
-# Save the plot
-ggsave("Fig_Spectra-CV.pdf", width = 8, height = 7)
+# Print and save the plot
+print(specplot)
+ggsave("Figures_Tables/Fig-S2_Spectra-CV.png", plot = specplot, width = 7, height = 8.5, dpi = 300)
 
+#'------------------------------------------------------------------------------
+#' @End
+#-------------------------------------------------------------------------------

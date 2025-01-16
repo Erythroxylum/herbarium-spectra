@@ -43,7 +43,7 @@ root_path <- getwd()
 
 # Define source
 source <- "Kothari" #Kothari or HUH
-dataset <- "ref" # ref, cwt, refnorm, cwtnorm
+dataset <- "ref" # ref, cwt, refnorm
 
 # Define bands of interest
 bands <- seq(450, 2400, by = 5)
@@ -209,7 +209,7 @@ plot(x = 1:20,
      ylab = "RMSEP")
 dev.off()
 
-# Select ncomp of 
+# Select ncomp as minimum PRESS value
 ncomp <- as.numeric(which.min(colMeans(opt_models[metric == "PRESS" | estimate == "PRESS", 7:ncol(opt_models)])))
 
 # Manually select ncomp
