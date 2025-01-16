@@ -1,4 +1,4 @@
-# Herbarium-Spectra  
+# Herbarium-Spectra: Codes for spectral data processing, trait prediction, and taxonomic classification  
 Datasets and scripts for the **NPH paper**, "Seeing herbaria in a new light: next generation digitization of spectral reflectance for plant biodiversity collections"
 
 MS here : https://docs.google.com/document/d/11l3kqhJK4u8AI_IRTXCYHxRL7BH9OhSGSkG_Ng6Hvgs/edit?usp=sharing
