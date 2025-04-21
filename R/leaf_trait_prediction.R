@@ -128,7 +128,7 @@ if(source == "HUH") {
   # Kothari bands
   cbands <- as.character(bands)
   spectra <- frame[, ..cbands]
-  
+}
 
 
 #-------------------------------------------------------------------------------
