@@ -4,7 +4,7 @@ classification modeling in plant biodiversity collections"
 
 Codes written by J. Antonio Guzmán Q. and Dawson M. White
 
-This project was funded by the Harvard University Herbaria, NSF REU-2150058, and the NSF BII DBI-2021898.
+This project was funded by the Harvard University Herbaria and the NSF BII DBI-2021898, with personnel support from NSF REU-2150058.
 
 Use of this code is restricted to non-commercial, academic purposes.  
 Please contact Erythroxylum for other use cases.
