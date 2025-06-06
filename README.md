@@ -1,6 +1,8 @@
 # Herbarium-Spectra: Codes for spectral data processing, trait prediction, and taxonomic classification  
-Datasets and scripts for the **New Phytologist submission**, "Seeing herbaria in a new light: leaf reflectance spectroscopy unlocks predictive trait and
+Datasets and scripts for the manuscript, "Seeing herbaria in a new light: leaf reflectance spectroscopy unlocks predictive trait and
 classification modeling in plant biodiversity collections"
+
+Access it here: https://ecoevorxiv.org/repository/view/8529/
 
 Codes written by J. Antonio Guzmán Q. and Dawson M. White
 
