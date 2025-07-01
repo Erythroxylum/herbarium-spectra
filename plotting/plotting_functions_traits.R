@@ -28,7 +28,7 @@ library(patchwork)
 root_path <- getwd()
 
 #-------------------------------------------------------------------------------
-#' @PLS-VIP-sixPanel-Fig3
+#' @Spectra-VIP-coefficients-sixPanel-Fig2
 #-------------------------------------------------------------------------------
 
 ## Process Datasets
@@ -221,7 +221,7 @@ final_figure <- wrap_plots(
 ggsave("Figures_Tables/Fig3-6panel.pdf", plot = final_figure, width = 8.5, height = 6)
 
 #-------------------------------------------------------------------------------
-#' @Trait-Biplots-Fig4
+#' @Trait-Biplots-Fig3
 #-------------------------------------------------------------------------------
 
 ##################
@@ -400,7 +400,7 @@ ggsave("Figures_Tables/Fig4_LMA-biplots.png", plot = combined_plot, width = 8.5,
 
 
 #-------------------------------------------------------------------------------
-#' @Violin-plots-Fig5
+#' @Violin-plots-Fig4
 #-------------------------------------------------------------------------------
 
 # do cwt then ref then cwt
