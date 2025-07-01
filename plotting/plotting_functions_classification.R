@@ -32,7 +32,7 @@ library(phytools)
 getwd()
 
 #-------------------------------------------------------------------------------
-#' @Classification-Performance-Table-3
+#' @Classification-Performance-Table-5
 #-------------------------------------------------------------------------------
 
 # Define the file paths and metadata
@@ -108,7 +108,7 @@ write.csv(final_table, "Figures_Tables/Table3_classification_performance_maxAcc.
 
 
 #-------------------------------------------------------------------------------
-#' @Plot-Confusion-Matrices_PLSDA-25sp_Fig6
+#' @Plot-Confusion-Matrices_PLSDA-25sp_Fig5
 #-------------------------------------------------------------------------------
 
 ## load phylogeny
