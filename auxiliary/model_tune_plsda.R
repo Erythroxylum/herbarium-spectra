@@ -34,7 +34,7 @@ model_tune_plsda <- function(meta,
     sub_frame <- frame[get_segments,]
     
     # Model control
-    ctrl <- trainControl(index = data_folds(meta_split$species, k = 10))
+    ctrl <- trainControl(index = data_folds(meta_split$scientificName, k = 10))
     
     model <- train(species ~ .,
                    data = sub_frame,
