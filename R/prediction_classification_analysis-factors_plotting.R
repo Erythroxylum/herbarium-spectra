@@ -43,7 +43,7 @@ output_path <- paste0(root_path, "/Figures_Tables/")
 
 # Read data
 frame <- fread(paste0(root_path, 
-                      "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv"))
+                      "/dataHUH2024_sp25leaf560_ref5nm_450-2400.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape  
@@ -51,15 +51,16 @@ frame <- fread(paste0(root_path,
 
 # Get files from meta data, traits, and spectra.
 
-meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","species",
-                  "ddmmyyScanned", "doy", "absoluteAge", "herbQuality",
-                  "damage", "glue", "leafStage", "greenIndex")]
+meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+                  "Genus", "Family", "Class", "Order",
+                  "eventDate", "Age", "measurementFlags",
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
 
 traits <- frame[, c("leafKg_m2", "leafThickness")]
 
 meta$sample <- 1:nrow(meta)
 
-species <- frame$species
+species <- frame$scientificName
 species <- sub(" ", "_", species)
 
 spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
