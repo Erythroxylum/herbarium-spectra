@@ -75,11 +75,11 @@ meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissu
 # create sample index column
 meta$sample <- 1:nrow(meta)
 
-# set taxonomic level for classification: frame$species or frame$genus
-species <- frame$species
+# set taxonomic level for classification: frame$scientificName or frame$genus
+taxon <- frame$scientificName
 
 # remove space
-species <- sub(" ", "_", species)
+taxon <- sub(" ", "_", taxon)
 
 # define spectra
 spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
@@ -88,7 +88,7 @@ spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
 #' @Data-split
 #-------------------------------------------------------------------------------
 
-# Select the number of specimens per species to include in training
+# Select the number of specimens per taxon to include in training
 # split <- data_split(meta = meta)
 
 # reload from split created by plsda, for comparability
@@ -123,7 +123,7 @@ segments <- readRDS(paste0(split_path, "/classification_segments.rds"))
 models_lda <- model_build_lda(meta = meta,
                               split = split,
                               segments = segments,
-                              species = species,
+                              species = taxon,
                               spectra = spectra,
                               threads = 10) # If windows = 1
 
@@ -137,16 +137,16 @@ models_lda <- model_build_lda(meta = meta,
 # This returns the stats of the model performance and the predicted probabilities
 
 #generate inverse of numeric vector for species split
-inverse_split <- setdiff(1:length(species), split)
+inverse_split <- setdiff(1:length(taxon), split)
 
 performance_lda_training <- model_performance_lda(meta_split = meta[split, ],
-                                                  species_split = species[split], 
+                                                  species_split = taxon[split], 
                                                   spectra_split = spectra[split, ],
                                                   models = models_lda,
                                                   threads = 10)
 
 performance_lda_testing <- model_performance_lda(meta_split = meta[!split, ],
-                                                  species_split = species[inverse_split], 
+                                                  species_split = taxon[inverse_split], 
                                                   spectra_split = spectra[!split, ],
                                                   models = models_lda,
                                                   threads = 10)
@@ -176,13 +176,13 @@ fwrite(vip_plsda, paste0(output_path, "/varImp_lda.csv"))
 #-------------------------------------------------------------------------------
 
 CM_lda_training <- confusion_matrices_lda_dw(meta_split = meta[split,],
-                                         species_split = species[split], 
+                                         species_split = taxon[split], 
                                          spectra_split = spectra[split, ],
                                          models = models_lda,
                                          threads = 2)
 
 CM_lda_testing <- confusion_matrices_lda_dw(meta_split = meta[!split,],
-                                        species_split = species[inverse_split], 
+                                        species_split = taxon[inverse_split], 
                                         spectra_split = spectra[!split, ],
                                         models = models_lda,
                                         threads = 2)
