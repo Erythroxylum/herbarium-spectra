@@ -62,7 +62,7 @@ predict_plsda <- function(coefficients_list, spectra, meta, traits) {
   predicted_classes <- as.factor(predicted_classes)
   
   # True classes (convert to factors)
-  true_classes <- as.factor(meta$species)
+  true_classes <- as.factor(meta$scientificName)
   true_classes <- as.factor(sub(" ", "_", true_classes))
   
   # Create a column for whether the prediction is correct
