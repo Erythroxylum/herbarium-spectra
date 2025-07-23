@@ -67,13 +67,13 @@ if(spectra_source == "HUH") {
   
   # HUH
   if (dataset == "cwtnorm") {
-    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_cwt5nm_norm_450-2400.csv"))
   } else if (dataset == "cwt") {
-    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_cwt5nm_450-2400.csv"))
   } else if (dataset == "ref") {
-    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_ref5nm_450-2400.csv"))
   } else if (dataset == "refnorm") {
-    frame <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_ref5nm_norm_450-2400.csv"))
   } else {
     stop("Invalid dataset specified for HUH.")
   }
@@ -82,10 +82,11 @@ if(spectra_source == "HUH") {
   #frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
-  meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan", 
-                    "species","genus","family","order","class",
-                    "growthForm", "ddmmyyScanned","doy","absoluteAge", 
-                    "herbQuality","damage", "glue", "leafStage", "greenIndex")]
+  meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+                  "Genus", "Family", "Class", "Order",
+                  "eventDate", "Age", "measurementFlags",
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
+
   meta$sample <- 1:nrow(meta)
   
   # HUH traits
@@ -99,13 +100,13 @@ if(spectra_source == "HUH") {
   
   # Kothari
   if (dataset == "cwtnorm") {
-    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_cwt5nm_norm_450-2400.csv"))
   } else if (dataset == "refnorm") {
-    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_ref5nm_norm_450-2400.csv"))
   } else if (dataset == "cwt") {
-    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_cwt5nm_450-2400.csv"))
   } else if (dataset == "ref") {
-    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_ref5nm_450-2400.csv"))
   } else {
     stop("Invalid dataset specified for Kothari.")
   }
