@@ -36,11 +36,11 @@ write.tree(phylo, "herbarium-predictors-analysis/phylogram_pd_TimeTree5.tre")
 ######## phylomaker
 
   # Read the dataset from a CSV file
-data <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/Spectroscopy/HUH-Spectra-2024/RAnalysesHUHSpectra/fullDataHUH2024_sp25leaf636_noResample_400-2300.csv")
+data <- read.csv("DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv")
 
 # Extract relevant columns and retain unique species
-species_data <- unique(data[, c("species", "genus", "family")])
-#species_data$species <- gsub(" ", "_", species_data$species)
+species_data <- unique(data[, c("scientificName", "Genus", "Family")])
+#species_data$species <- gsub(" ", "_", species_data$scientificName)
 
 species_data <- data.frame(
 species = c("Myrica gale", "Acer rubrum", "Betula papyrifera", "Betula populifolia",
