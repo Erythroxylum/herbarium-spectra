@@ -175,13 +175,13 @@ fwrite(vip_plsda, paste0(output_path, "/varImp_lda.csv"))
 #' @Confusion-Matrices
 #-------------------------------------------------------------------------------
 
-CM_lda_training <- confusion_matrices_lda_dw(meta_split = meta[split,],
+CM_lda_training <- confusion_matrices_lda(meta_split = meta[split,],
                                          species_split = taxon[split], 
                                          spectra_split = spectra[split, ],
                                          models = models_lda,
                                          threads = 2)
 
-CM_lda_testing <- confusion_matrices_lda_dw(meta_split = meta[!split,],
+CM_lda_testing <- confusion_matrices_lda(meta_split = meta[!split,],
                                         species_split = taxon[inverse_split], 
                                         spectra_split = spectra[!split, ],
                                         models = models_lda,
