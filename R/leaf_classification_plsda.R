@@ -59,7 +59,7 @@ if (!dir.exists(split_path)) {
 #-------------------------------------------------------------------------------
 
 # Select the file of interest
-frame <- fread("data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")
+frame <- fread("DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv")
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape
@@ -67,19 +67,19 @@ frame <- fread("data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")
 
 # Get files from meta data, traits, and spectra.
 
-meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","species",
-                  "genus","family","class","order",
-                  "ddmmyyScanned", "absoluteAge", "herbQuality",
-                  "damage", "glue", "leafStage", "greenIndex")]
+meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+                  "Genus", "Family", "Class", "Order",
+                  "eventDate", "Age", "measurementFlags",
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
 
 # create sample index column
 meta$sample <- 1:nrow(meta)
 
-# set taxonomic level for classification: frame$species or frame$genus
-species <- frame$species
+# set taxonomic level for classification: frame$scientificName or frame$genus
+taxon <- frame$scientificName
 
 # remove space
-species <- sub(" ", "_", species)
+taxon <- sub(" ", "_", taxon)
 
 # define spectra
 spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
@@ -130,7 +130,7 @@ ncomp_max <- 50
 opt_models <- model_tune_plsda(meta = meta,
                                split = split,
                                segments = segments,
-                               species = species,
+                               species = taxon,
                                spectra = spectra,
                                ncomp_max = ncomp_max,
                                threads = 20) # If windows = 1, mac 2 same as 6
@@ -175,7 +175,7 @@ fwrite(opt_models, paste0(output_path, "/opt_comp_models_plsda.csv"))
 models_plsda <- model_build_plsda(meta = meta,
                                   split = split,
                                   segments = segments,
-                                  species = species,
+                                  species = taxon,
                                   spectra = spectra,
                                   ncomp = ncomp,
                                   threads = 20) # If windows = 1
@@ -190,17 +190,17 @@ models_plsda <- model_build_plsda(meta = meta,
 # This return the stats of the model performance and the predicted probabilities
 
 performance_plsda_training <- model_performance_plsda(meta_split = meta[split, ],
-                                                      species_split = species[split], 
+                                                      species_split = taxon[split], 
                                                       spectra_split = spectra[split, ],
                                                       models = models_plsda,
                                                       ncomp = ncomp,
                                                       threads = 20)
 
 #generate inverse of numeric vector for species split
-inverse_split <- setdiff(1:length(species), split)
+inverse_split <- setdiff(1:length(taxon), split)
 
 performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ],
-                                                     species_split = species[inverse_split], 
+                                                     species_split = taxon[inverse_split], 
                                                      spectra_split = spectra[!split, ],
                                                      models = models_plsda,
                                                      ncomp = ncomp,
@@ -231,14 +231,14 @@ fwrite(vip_plsda, paste0(output_path, "/varImp_plsda.csv"))
 #-------------------------------------------------------------------------------
 
 CM_plsda_training <- confusion_matrices_plsda_dw(meta_split = meta[split,],
-                                             species_split = species[split], 
+                                             species_split = taxon[split], 
                                              spectra_split = spectra[split, ],
                                              models = models_plsda,
                                              ncomp = ncomp,
                                              threads = 2)
 
 CM_plsda_testing <- confusion_matrices_plsda_dw(meta_split = meta[!split,],
-                                            species_split = species[inverse_split], 
+                                            species_split = taxon[inverse_split], 
                                             spectra_split = spectra[!split, ],
                                             models = models_plsda,
                                             ncomp = ncomp,
