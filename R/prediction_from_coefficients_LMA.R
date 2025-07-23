@@ -101,13 +101,13 @@ if(spectra_source == "HUH") {
   
   # Kothari
   if (dataset == "cwtnorm") {
-    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_cwt5nm_norm_450-2400.csv"))
   } else if (dataset == "refnorm") {
-    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_ref5nm_norm_450-2400.csv"))
   } else if (dataset == "cwt") {
-    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_cwt5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_cwt5nm_450-2400.csv"))
   } else if (dataset == "ref") {
-    frame <- fread(paste0(root_path, "/data/dataKothari_pressed_unavg_ref5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_ref5nm_450-2400.csv"))
   } else {
     stop("Invalid dataset specified for Kothari.")
   }
