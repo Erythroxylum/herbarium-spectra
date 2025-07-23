@@ -3,28 +3,27 @@
 
 data_split <- function(meta) {
   
-  unique_species <- unique(meta$species)
-  collector <- as.numeric()
+  unique_species <- unique(meta$scientificName)
+  selected_rows <- integer()
   
-  for(i in 1:length(unique_species)) {
+  for (i in seq_along(unique_species)) {
     
-    # Subset species of interest and look to the accession
-    sub_meta <- subset(meta, species == unique_species[i])
-    unique_accession <- unique(sub_meta$accession)
+    # Subset metadata by species
+    sub_meta <- subset(meta, scientificName == unique_species[i])
     
-    # Ramdomly select accession
-    get_samples <- sample(1:length(unique_accession), 10)
+    # Get all specimen identifiers for that species
+    unique_specimens <- unique(sub_meta$specimenIdentifier)
     
-    # Select accession to subset for traint
-    get_samples <- sub_meta$accession %in% unique_accession[get_samples]
-    sub_meta <- sub_meta[get_samples == TRUE, ]
+    # Randomly select up to 10 specimens (adjust if fewer available)
+    selected_ids <- sample(unique_specimens, min(10, length(unique_specimens)))
     
-    # Save collector of sample
-    collector <- c(collector, sub_meta$sample)
+    # Subset rows corresponding to selected specimens
+    sub_rows <- which(meta$specimenIdentifier %in% selected_ids & meta$scientificName == unique_species[i])
     
+    # Collect row indices
+    selected_rows <- c(selected_rows, sub_rows)
   }
   
-  return(collector)
-  
+  return(selected_rows)
 }
 
