@@ -59,7 +59,7 @@ if (!dir.exists(split_path)) {
 #-------------------------------------------------------------------------------
 
 # Select the file of interest
-frame <- fread("data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")
+frame <- fread("DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv")
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape
@@ -67,10 +67,10 @@ frame <- fread("data/dataHUH2024_sp25leaf561_ref5nm_450-2400.csv")
 
 # Get files from meta data, traits, and spectra.
 
-meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan","species",
-                  "genus","family","class","order",
-                  "ddmmyyScanned", "absoluteAge", "herbQuality",
-                  "damage", "glue", "leafStage", "greenIndex")]
+meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+                  "Genus", "Family", "Class", "Order",
+                  "eventDate", "Age", "measurementFlags",
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
 
 # create sample index column
 meta$sample <- 1:nrow(meta)
