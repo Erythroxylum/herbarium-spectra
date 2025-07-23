@@ -15,11 +15,9 @@ Please contact Erythroxylum for other use cases.
 
 ## Data 
 
-### Archived data downloads can be accessed via the Plant Diversity and Ecology collection in Harvard Dataverse: https://doi.org/10.7910/DVN/LXPHBC
+Archived data downloads can be accessed via the Plant Diversity and Ecology collection in Harvard Dataverse: https://doi.org/10.7910/DVN/LXPHBC
 
-## The archive contains herbarium spectral files, metadata, and processed tabular spectra files with metadata. 
-
-## Metadata attributes are described in the NPH article and correspond to the IHerbSpec protocol.
+The archive contains herbarium spectral files, metadata, and processed tabular spectra files with metadata. 
 
 ### Download Herbarium data
 
