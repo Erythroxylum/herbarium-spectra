@@ -77,11 +77,13 @@ if(source == "HUH") {
   frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
-  meta <- frame[, c("collector", "accession", "accession_leaf", "leaf", "scan", 
-                    "species","genus","family","order","class",
-                    "growthForm", "ddmmyyScanned","doy","absoluteAge", 
-                    "herbQuality","damage", "glue", "leafStage", "greenIndex")]
-  meta$sample <- 1:nrow(meta)
+  meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+                  "Genus", "Family", "Class", "Order",
+                  "eventDate", "Age", "measurementFlags",
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
+
+  #meta$sample <- 1:nrow(meta)
+  meta$sample <- idx_analysis
   
   # HUH traits
   traits <- frame[, c("leafKg_m2", "leafThickness")]
