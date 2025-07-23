@@ -21,12 +21,15 @@ root_path <- getwd()
 #-------------------------------------------------------------------------------
 
 # Read database
-data <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_noResample_350-2500.csv"))
-data <- fread(paste0(root_path, "/data/dataHUH2024_sp25leaf561_norm_350-2500.csv"))
+data <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf560_noResample_350-2500.csv"))
+data <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf560_noResample_norm_350-2500.csv"))
 
-# Get meta and spectra
-meta <- data[, .SD, .SDcols = 1:22]
-spectra <- data[, .SD, .SDcols = 23:ncol(data)]
+# Find index of spectral start column
+first_spectral_col <- which(colnames(data) == "338.6")
+
+# Split metadata and spectra
+meta <- data[, 1:(first_spectral_col - 1), with = FALSE]
+spectra <- data[, first_spectral_col:ncol(data), with = FALSE]
 
 # Difference between consecutive bands (resolution)
 bands <- as.numeric(colnames(spectra))
@@ -56,9 +59,9 @@ plot(as.numeric(colnames(spectra_resampled)),
 spectra_ref_export <- spectra_resampled[, .SD, .SDcols = 21:411]
 
 fwrite(cbind(meta, spectra_ref_export), 
-       paste0(root_path, "/data/dataHUH2024_sp25leaf561_ref5nm_norm_450-2400.csv"))
+       paste0(root_path, "/DMWhiteHUHspec1_sp25leaf560_ref5nm_norm_450-2400.csv"))
 
-# Transform spectra
+# Continuous Wavelet Transform spectra
 spectra_transformed <- cwt(t = spectra_resampled, 
                            scales = c(2, 3, 4), 
                            variance = 1, 
@@ -75,7 +78,7 @@ spectra_cwt_export <- spectra_transformed[, .SD, .SDcols = 21:411]
 
 # Export
 fwrite(cbind(meta, spectra_cwt_export), 
-       paste0(root_path, "/data/dataHUH2024_sp25leaf561_cwt5nm_norm_450-2400.csv"))
+       paste0(root_path, "/DMWhiteHUHspec1_sp25leaf560_cwt5nm_norm_450-2400.csv"))
 
 
 
