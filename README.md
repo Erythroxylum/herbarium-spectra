@@ -3,7 +3,7 @@
 Replication scripts for the manuscript, *Seeing herbaria in a new light: leaf reflectance spectroscopy unlocks predictive trait and classification modeling in plant biodiversity collections* published in *New Phytologist*, 04 July 2025  
 📖 Access the paper: [https://doi.org/10.1111/nph.70357](https://doi.org/10.1111/nph.70357)
 
-Authors: J. Antonio Guzmán Q. and Dawson M. White  
+Authors: Dawson M. White, Jeannine Cavender-Bares, Charles C. Davis, J. Antonio Guzmán Q., Shan Kothari, Jorge M. Robles, José Eduardo Meireles
 Funding: Harvard University Herbaria, NSF BII DBI-2021898, NSF REU-2150058  
 
 Use of this code is restricted to non-commercial, academic purposes.  
