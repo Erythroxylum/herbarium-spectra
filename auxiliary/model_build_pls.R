@@ -1,13 +1,64 @@
 #-------------------------------------------------------------------------------
 # Function for build the final models based on the optimal number of components
 
-model_build <- function(meta, 
+model_build <- function(meta,
+                        split,
+                        segments,
+                        traits,
+                        spectra,
+                        ncomp,
+                        threads = 1) {
+  
+  # Ensure proper types
+  traits_split <- traits[split][[1]]
+  spectra_split <- as.data.frame(spectra[split, ])
+  meta_split <- meta[split, ]
+  frame <- as.data.frame(cbind(trait = traits_split, spectra_split))
+  
+  # Inner model-building function
+  build <- function(X, split, segments, meta_split, frame, ncomp) {
+    get_segments <- split %in% segments[[X]]
+    sub_frame <- frame[get_segments, ]
+    meta_seg <- meta_split[get_segments, ]
+    
+    if (nrow(sub_frame) < ncomp) {
+      stop(paste0("Segment ", X, ": not enough samples to fit ", ncomp, " components"))
+    }
+    
+    plsr(trait ~ .,
+         data = sub_frame,
+         validation = "CV",
+         ncomp = ncomp,
+         center = TRUE,
+         method = "oscorespls",
+         maxit = 10000,
+         segments = 10)
+  }
+  
+  # Set up parallel plan and progress bar
+  plan(multisession, workers = threads)
+  handlers(global = TRUE)
+  handlers("txtprogressbar")  # You can change this to "progress" or "notifier"
+  
+  # Wrap parallel processing in progressr
+  p <- progressr::progressor(along = 1:length(segments))
+  
+  complete <- future_lapply(1:length(segments), function(i) {
+    p(sprintf("Fitting model %d", i))
+    build(i, split, segments, meta_split, frame, ncomp)
+  }, future.seed = TRUE)
+  
+  return(complete)
+}
+
+# OLD
+model_build_old <- function(meta, 
                         split, 
                         segments,
                         traits, 
                         spectra,
                         ncomp,
-                        threads) {
+                        threads = 1) {
   
   # Data for training
   meta_split <- meta[split,]

@@ -59,7 +59,10 @@ if (!dir.exists(split_path)) {
 #-------------------------------------------------------------------------------
 
 # Select the file of interest
-frame <- fread("DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv")
+frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv"))
+
+# remove space in scientificName
+frame$scientificName <- sub(" ", "_", frame$scientificName)
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape
@@ -67,29 +70,26 @@ frame <- fread("DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv")
 
 # Get files from meta data, traits, and spectra.
 
-meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+meta <- frame[, c("collector", "specimenIdentifier", "targetTissueClass", "targetTissueNumber", "measurementIndex", "scientificName",
                   "Genus", "Family", "Class", "Order",
                   "eventDate", "Age", "measurementFlags",
-                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex", "growthForm")]
 
-# create sample index column
+# create sample index column or assign from idx_analysis
 meta$sample <- 1:nrow(meta)
 
-# set taxonomic level for classification: frame$scientificName or frame$genus
-taxon <- frame$scientificName
-
-# remove space
-taxon <- sub(" ", "_", taxon)
-
+# Define bands of interest
+bands <- seq(450, 2400, by = 5)
+cbands <- as.character(bands)
 # define spectra
-spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
+spectra <- frame[, ..cbands]
 
 #-------------------------------------------------------------------------------
 #' @Data-split
 #-------------------------------------------------------------------------------
 
 # Select the number of specimens per taxon to include in training
-# split <- data_split(meta = meta)
+#split <- data_split(meta = meta)
 
 # reload from split created by plsda, for comparability
 split <- readRDS(paste0(split_path, "/classification_split.rds"))
@@ -99,20 +99,20 @@ split <- readRDS(paste0(split_path, "/classification_split.rds"))
 #-------------------------------------------------------------------------------
 
 # Select a spectral measurement per specimen
-#iterations <- 1000 # 1000
+iterations <- 3 # 1000
 
-#segments <- pbmclapply(X = 1:iterations,
- #                      FUN = data_segments,
-  #                     meta = meta,
-   #                    split = split,
-    #                   mc.set.seed = TRUE,
-     #                  mc.cores = 1) # If windows = 1
+segments <- pbmclapply(X = 1:iterations,
+                       FUN = data_segments_classification,
+                       meta = meta,
+                       split = split,
+                       mc.set.seed = TRUE,
+                       mc.cores = 1) # If windows = 1
 
 # Export for record
 #saveRDS(segments, paste0(split_path, "/classification_segments.rds"))
 
 # Reload from PLSDA segments, for comparability
-segments <- readRDS(paste0(split_path, "/classification_segments.rds"))
+#segments <- readRDS(paste0(split_path, "/classification_segments.rds"))
 
 
 #-------------------------------------------------------------------------------
@@ -123,9 +123,9 @@ segments <- readRDS(paste0(split_path, "/classification_segments.rds"))
 models_lda <- model_build_lda(meta = meta,
                               split = split,
                               segments = segments,
-                              species = taxon,
+                              rank = scientificName,
                               spectra = spectra,
-                              threads = 10) # If windows = 1
+                              threads = 2) # If windows = 1
 
 # save models (heavy)
 #saveRDS(models_lda, output_path, "classification_lda_models.rds")
@@ -135,18 +135,19 @@ models_lda <- model_build_lda(meta = meta,
 #-------------------------------------------------------------------------------
 
 # This returns the stats of the model performance and the predicted probabilities
+# Change meta$scientificName to other rank if needed.
 
 #generate inverse of numeric vector for species split
-inverse_split <- setdiff(1:length(taxon), split)
+inverse_split <- setdiff(1:length(meta$scientificName), split)
 
 performance_lda_training <- model_performance_lda(meta_split = meta[split, ],
-                                                  species_split = taxon[split], 
+                                                  species_split = meta$scientificName[split],
                                                   spectra_split = spectra[split, ],
                                                   models = models_lda,
-                                                  threads = 10)
+                                                  threads = 2)
 
 performance_lda_testing <- model_performance_lda(meta_split = meta[!split, ],
-                                                  species_split = taxon[inverse_split], 
+                                                  species_split = meta$scientificName[inverse_split], 
                                                   spectra_split = spectra[!split, ],
                                                   models = models_lda,
                                                   threads = 10)
@@ -176,13 +177,13 @@ fwrite(vip_plsda, paste0(output_path, "/varImp_lda.csv"))
 #-------------------------------------------------------------------------------
 
 CM_lda_training <- confusion_matrices_lda(meta_split = meta[split,],
-                                         species_split = taxon[split], 
+                                         species_split = meta$scientificName[split], 
                                          spectra_split = spectra[split, ],
                                          models = models_lda,
                                          threads = 2)
 
 CM_lda_testing <- confusion_matrices_lda(meta_split = meta[!split,],
-                                        species_split = taxon[inverse_split], 
+                                        species_split = meta$scientificName[inverse_split], 
                                         spectra_split = spectra[!split, ],
                                         models = models_lda,
                                         threads = 2)
@@ -191,3 +192,7 @@ CM_lda_testing <- confusion_matrices_lda(meta_split = meta[!split,],
 saveRDS(CM_lda_training, paste0(output_path, "/CM_lda_training.rds"))
 saveRDS(CM_lda_testing, paste0(output_path, "/CM_lda_testing.rds"))
 
+
+#-------------------------------------------------------------------------------
+#' @End
+#-------------------------------------------------------------------------------

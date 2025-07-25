@@ -36,8 +36,8 @@ results <- paste0(root_path, "/results")
 # Define source
 coef_source <- "Kothari" # Coefficients of trait model
 spectra_source <- "HUH" # Spectra for new predictions
-dataset <- "cwt" # cwt or ref
-trait_name <- "sol" # "" for lma, other C, Ca, car, cel, chlA, N, sol
+dataset <- "ref" # cwt or ref
+trait_name <- "" # "" for lma, other C, Ca, car, cel, chlA, N, sol
 
 # Define bands of interest
 bands <- seq(450, 2400, by = 5) # full-range
@@ -55,9 +55,7 @@ dir.create(out_path, recursive = TRUE)
 ### Read coefficients
 
 coef <- fread(paste0(root_path, "/results/", 
-                     coef_source, "/", 
-                     dataset, trait_name, "/", 
-                     coef_source, "_", min(bands), "-", max(bands), "/pls_", coef_source, "_coefficients.csv"))
+                     coef_source, "/", dataset, "/",coef_source, "_", min(bands), "-", max(bands), "/pls_", coef_source, "_",dataset,"_",min(bands), "-", max(bands), "_coefficients.csv"))
 colnames(coef) <- gsub("`", "", colnames(coef))
 
 # ------------------------------------------------------------------------------
@@ -67,13 +65,13 @@ if(spectra_source == "HUH") {
   
   # HUH
   if (dataset == "cwtnorm") {
-    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_cwt5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_cwt5nm_norm_450-2400.csv"))
   } else if (dataset == "cwt") {
-    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_cwt5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_cwt5nm_450-2400.csv"))
   } else if (dataset == "ref") {
-    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_ref5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv"))
   } else if (dataset == "refnorm") {
-    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_ref5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_ref5nm_norm_450-2400.csv"))
   } else {
     stop("Invalid dataset specified for HUH.")
   }
@@ -82,15 +80,15 @@ if(spectra_source == "HUH") {
   #frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
-  meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
-                  "Genus", "Family", "Class", "Order",
-                  "eventDate", "Age", "measurementFlags",
-                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
+  meta <- frame[, c("collector", "specimenIdentifier", "targetTissueClass", "targetTissueNumber", "measurementIndex", "scientificName",
+                    "Genus", "Family", "Class", "Order",
+                    "eventDate", "Age", "measurementFlags",
+                    "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex", "growthForm", "doyOfCollection")]
 
   meta$sample <- 1:nrow(meta)
   
   # HUH traits
-  traits <- frame[, c("leafKg_m2", "leafThickness")]
+  traits <- frame[, c("leafKg_m2")]
   
   # HUH bands
   cbands <- as.character(bands)
@@ -100,13 +98,13 @@ if(spectra_source == "HUH") {
   
   # Kothari
   if (dataset == "cwtnorm") {
-    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_cwt5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/KothariPressedSpec_pressed_unavg_cwt5nm_norm_450-2400.csv"))
   } else if (dataset == "refnorm") {
-    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_ref5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/KothariPressedSpec_pressed_unavg_ref5nm_norm_450-2400.csv"))
   } else if (dataset == "cwt") {
-    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_cwt5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/KothariPressedSpec_pressed_unavg_cwt5nm_450-2400.csv"))
   } else if (dataset == "ref") {
-    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_ref5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/KothariPressedSpec_pressed_unavg_ref5nm_450-2400.csv"))
   } else {
     stop("Invalid dataset specified for Kothari.")
   }

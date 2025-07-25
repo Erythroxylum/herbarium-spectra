@@ -59,7 +59,10 @@ if (!dir.exists(split_path)) {
 #-------------------------------------------------------------------------------
 
 # Select the file of interest
-frame <- fread("DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv")
+frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv"))
+
+# remove space in scientificName
+frame$scientificName <- sub(" ", "_", frame$scientificName)
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape
@@ -67,22 +70,21 @@ frame <- fread("DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv")
 
 # Get files from meta data, traits, and spectra.
 
-meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+meta <- frame[, c("collector", "specimenIdentifier", "targetTissueClass", "targetTissueNumber", "measurementIndex", "scientificName",
                   "Genus", "Family", "Class", "Order",
                   "eventDate", "Age", "measurementFlags",
-                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex", "growthForm")]
 
 # create sample index column
 meta$sample <- 1:nrow(meta)
 
-# set taxonomic level for classification: frame$scientificName or frame$genus
-taxon <- frame$scientificName
-
-# remove space
-taxon <- sub(" ", "_", taxon)
+# Define bands of interest
+bands <- seq(450, 2400, by = 5)
+cbands <- as.character(bands)
 
 # define spectra
-spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
+spectra <- frame[, ..cbands]
+
 
 #-------------------------------------------------------------------------------
 #' @Data-split
@@ -102,14 +104,14 @@ split <- readRDS(paste0(split_path, "/classification_split.rds"))
 #-------------------------------------------------------------------------------
 
 # Select a spectral measurement per specimen
-iterations <- 3 # 1000
+#iterations <- 3 # 1000
 
-segments <- pbmclapply(X = 1:iterations,
-                       FUN = data_segments,
-                       meta = meta,
-                       split = split,
-                       mc.set.seed = TRUE,
-                       mc.cores = 5) # If windows = 1
+#segments <- pbmclapply(X = 1:iterations,
+#                       FUN = data_segments_classification,
+#                       meta = meta,
+#                       split = split,
+#                       mc.set.seed = TRUE,
+#                       mc.cores = 1) # If windows = 1
 
 # Export for record
 #saveRDS(segments, paste0(split_path, "/classification_segments.rds"))
@@ -124,16 +126,16 @@ segments <- readRDS(paste0(split_path, "/classification_segments.rds"))
 # Select the optimal number of components for all the iterations
 
 # Max number of comp to run
-ncomp_max <- 50
+ncomp_max <- 5
 
 # Models to evaluate the optimal
 opt_models <- model_tune_plsda(meta = meta,
                                split = split,
                                segments = segments,
-                               species = taxon,
+                               rank = scientificName,
                                spectra = spectra,
                                ncomp_max = ncomp_max,
-                               threads = 20) # If windows = 1, mac 2 same as 6
+                               threads = 2) # If windows = 1, mac 2 same as 6
 
 
 # Filter for accuracy and accuracy SD metrics
@@ -175,12 +177,12 @@ fwrite(opt_models, paste0(output_path, "/opt_comp_models_plsda.csv"))
 models_plsda <- model_build_plsda(meta = meta,
                                   split = split,
                                   segments = segments,
-                                  species = taxon,
+                                  rank = scientificName,
                                   spectra = spectra,
                                   ncomp = ncomp,
-                                  threads = 20) # If windows = 1
+                                  threads = 2) # If windows = 1
 
-# save models
+# save models? Heavy
 #saveRDS(models_plsda, output_path, "classification_plsda_models.rds")
 
 #-------------------------------------------------------------------------------
@@ -188,23 +190,26 @@ models_plsda <- model_build_plsda(meta = meta,
 #-------------------------------------------------------------------------------
 
 # This return the stats of the model performance and the predicted probabilities
+# Change meta$scientificName to other rank if needed.
 
 performance_plsda_training <- model_performance_plsda(meta_split = meta[split, ],
-                                                      species_split = taxon[split], 
+                                                      species_split = meta$scientificName[split],
                                                       spectra_split = spectra[split, ],
                                                       models = models_plsda,
                                                       ncomp = ncomp,
-                                                      threads = 20)
+                                                      threads = 4
+                                                      )
+
 
 #generate inverse of numeric vector for species split
-inverse_split <- setdiff(1:length(taxon), split)
+inverse_split <- setdiff(1:length(meta$scientificName), split)
 
 performance_plsda_testing <- model_performance_plsda(meta_split = meta[!split, ],
-                                                     species_split = taxon[inverse_split], 
+                                                     species_split = meta$scientificName[inverse_split], 
                                                      spectra_split = spectra[!split, ],
                                                      models = models_plsda,
                                                      ncomp = ncomp,
-                                                     threads = 20)
+                                                     threads = 4)
 # Export for record
 saveRDS(performance_plsda_training, paste0(output_path, "/performance_plsda_training.rds"))
 saveRDS(performance_plsda_testing, paste0(output_path, "/performance_plsda_testing.rds"))
@@ -229,16 +234,17 @@ fwrite(vip_plsda, paste0(output_path, "/varImp_plsda.csv"))
 #-------------------------------------------------------------------------------
 #' @Confusion-Matrices
 #-------------------------------------------------------------------------------
+# Change meta$scientificName to other rank if needed.
 
 CM_plsda_training <- confusion_matrices_plsda(meta_split = meta[split,],
-                                             species_split = taxon[split], 
+                                             species_split = meta$scientificName[split], 
                                              spectra_split = spectra[split, ],
                                              models = models_plsda,
                                              ncomp = ncomp,
                                              threads = 2)
 
 CM_plsda_testing <- confusion_matrices_plsda(meta_split = meta[!split,],
-                                            species_split = taxon[inverse_split], 
+                                            species_split = meta$scientificName[inverse_split], 
                                             spectra_split = spectra[!split, ],
                                             models = models_plsda,
                                             ncomp = ncomp,
@@ -247,3 +253,6 @@ CM_plsda_testing <- confusion_matrices_plsda(meta_split = meta[!split,],
 saveRDS(CM_plsda_training, paste0(output_path, "/CM_plsda_training.rds"))
 saveRDS(CM_plsda_testing, paste0(output_path, "/CM_plsda_testing.rds"))
 
+#-------------------------------------------------------------------------------
+#' @End
+#-------------------------------------------------------------------------------

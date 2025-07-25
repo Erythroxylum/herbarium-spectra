@@ -28,6 +28,7 @@ library(ape)
 #-------------------------------------------------------------------------------
 
 source("auxiliary/predict_from_coefficients_classification.R")
+source("auxiliary/confusion_matrices.R")
 
 #'------------------------------------------------------------------------------
 #' @Working_directory
@@ -36,6 +37,10 @@ source("auxiliary/predict_from_coefficients_classification.R")
 # Select the root_folder to read data and export results
 root_path <- getwd()
 output_path <- paste0(root_path, "/Figures_Tables/")
+# Ensure the output folder exists
+if (!dir.exists(output_path)) {
+  dir.create(output_path, recursive = TRUE)
+}
 
 #'------------------------------------------------------------------------------
 #' @Read-Information
@@ -43,7 +48,10 @@ output_path <- paste0(root_path, "/Figures_Tables/")
 
 # Read data
 frame <- fread(paste0(root_path, 
-                      "/DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv"))
+                      "/data/DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv"))
+
+# remove space in scientificName
+frame$scientificName <- sub(" ", "_", frame$scientificName)
 
 #-------------------------------------------------------------------------------
 #' @Data_reshape  
@@ -51,19 +59,32 @@ frame <- fread(paste0(root_path,
 
 # Get files from meta data, traits, and spectra.
 
-meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+meta <- frame[, c("collector", "specimenIdentifier", "targetTissueClass", "targetTissueNumber", "measurementIndex", "scientificName",
                   "Genus", "Family", "Class", "Order",
                   "eventDate", "Age", "measurementFlags",
-                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex", "growthForm", "doyOfCollection")]
 
-traits <- frame[, c("leafKg_m2", "leafThickness")]
+# Convert IHerbSpec metadata fields to NPH nomenclature for leafDamage and specimenQuality
+meta[, leafDamage := fcase(
+  tissueNotes == "No visible biotic or abiotic damage to any leaves on herbarium sheet.", "none",
+  tissueNotes == "Physical biotic or abiotic damage visible on some leaves on the specimen but no damage on the measured leaf.", "minor",
+  tissueNotes == "Damage visible on measured leaves, but no damage is present in the  measured target area.", "medium",
+  tissueNotes == "Biotic or abiotic damage is visible in the measured target area.", "major",
+  default = NA_character_
+)]
+meta[, specimenQuality := gsub("Preservation\\|?.*", "", measurementFlags)]
+
+traits <- frame[, c("leafKg_m2")]
 
 meta$sample <- 1:nrow(meta)
 
 species <- frame$scientificName
-species <- sub(" ", "_", species)
 
-spectra <- frame[, .SD, .SDcols = 23:ncol(frame)]
+# Define bands of interest
+bands <- seq(450, 2400, by = 5)
+cbands <- as.character(bands)
+# define spectra
+spectra <- frame[, ..cbands]
 
 
 #'------------------------------------------------------------------------------
@@ -90,7 +111,7 @@ predictions_table <- predict_plsda(
 #-------------------------------------------------------------------------------
 
 # Load the phylogenetic tree
-phylo <- read.tree("herbarium-predictors-analysis/phylogram_pd_TimeTree5.tre")
+phylo <- read.tree(paste0(root_path, "/phylogram_pd_TimeTree5.tre"))
 
 # Compute the pairwise matrix of phylogenetic distances
 distance_matrix <- cophenetic.phylo(phylo)
@@ -112,6 +133,11 @@ ntd <- distance_matrix_dt[species1 != species2, .(
 
 # Rename `species1` to `true_class` for merging compatibility
 setnames(ntd, "species1", "true_class")
+
+# Remove any duplicate or hidden attributes on 'predicted_class'
+predictions_table <- as.data.table(predictions_table)
+predictions_table[, predicted_class := as.character(predicted_class)]
+predictions_table <- predictions_table[, !duplicated(names(predictions_table)), with = FALSE]
 
 # Merge NTD into predictions
 predictions_table_ntd <- merge(predictions_table, ntd, by = "true_class", all.x = TRUE)
@@ -141,17 +167,17 @@ fwrite(predictions_table_ntd_pd, paste0(output_path, "predictions_table_plsda25s
 #-------------------------------------------------------------------------------
 
 # Generate data frame with correct classifications
-correct_classifications <- predictions %>%
-  filter(true_class == predicted_class) %>%
+correct_classifications <- predictions_table_ntd_pd %>%
+  filter(as.character(true_class) == as.character(predicted_class)) %>%
   mutate(dataset = "Correct Predictions")
 
 # Generate data frame with incorrect classifications
-incorrect_classifications <- predictions %>%
-  filter(true_class != predicted_class) %>%
+incorrect_classifications <- predictions_table_ntd_pd %>%
+  filter(as.character(true_class) != as.character(predicted_class)) %>%
   mutate(dataset = "Incorrect Predictions")
 
 # Add a label for the full dataset
-classProbs <- predictions %>%
+classProbs <- predictions_table_ntd %>%
   mutate(dataset = "All")
 
 
@@ -174,8 +200,7 @@ cor_inc_data <- bind_rows(correct_classifications, incorrect_classifications)
 ymin = 0.03
 ymax = 0.14
 
-# Plot for herbQualityity
-p1 <- ggplot(cor_inc_data, aes(x = herbQuality, y = prob_predicted, fill = dataset)) +
+p1 <- ggplot(cor_inc_data, aes(x = specimenQuality, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   labs(x = "Specimen Quality", y = "Predicted Probabilities") +
   theme_minimal() +
@@ -183,15 +208,23 @@ p1 <- ggplot(cor_inc_data, aes(x = herbQuality, y = prob_predicted, fill = datas
   scale_y_continuous(limits = c(ymin, ymax))
 
 # Plot for glue
-p2 <- ggplot(cor_inc_data, aes(x = glue, y = prob_predicted, fill = dataset)) +
+p2 <- ggplot(cor_inc_data, aes(x = hasGlue, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   labs(x = "Glue", y = NULL) +
   theme_minimal() +
   scale_fill_manual(values = c("#21908CFF", "#FDE725FF")) +
   scale_y_continuous(limits = c(ymin, ymax))
 
-# Plot for damage
-p3 <- ggplot(cor_inc_data, aes(x = damage, y = prob_predicted, fill = dataset)) +
+# Plot for damage - convert from tissueNotes
+cor_inc_data[, leafDamage := fcase(
+  tissueNotes == "No visible biotic or abiotic damage to any leaves on herbarium sheet.", "none",
+  tissueNotes == "Physical biotic or abiotic damage visible on some leaves on the specimen but no damage on the measured leaf.", "minor",
+  tissueNotes == "Damage visible on measured leaves, but no damage is present in the  measured target area.", "medium",
+  tissueNotes == "Biotic or abiotic damage is visible in the measured target area.", "major",
+  default = NA_character_
+)]
+
+p3 <- ggplot(cor_inc_data, aes(x = leafDamage, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   labs(x = "Damage Status", y = "Predicted Probabilities") +
   theme_minimal() +
@@ -199,7 +232,7 @@ p3 <- ggplot(cor_inc_data, aes(x = damage, y = prob_predicted, fill = dataset)) 
   scale_y_continuous(limits = c(ymin, ymax))
 
 # Plot for leafStage
-p4 <- ggplot(cor_inc_data, aes(x = leafStage, y = prob_predicted, fill = dataset)) +
+p4 <- ggplot(cor_inc_data, aes(x = tissueDevelopmentalStage, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   labs(x = "Leaf Stage", y = NULL) +
   theme_minimal() +
@@ -217,12 +250,12 @@ ggsave("Figures_Tables/Fig7-PLSDA-regressions_correct-incorrect.png", plot = plo
 ## significance testing
 
 #####
-# herbQuality
+# specimenQuality
 # Filter data for Correct Predictions
 correct_data <- cor_inc_data[dataset == "Correct Predictions"]
 
 # Plot for Specimen Quality within Correct Predictions
-p1c <- ggplot(correct_data, aes(x = herbQuality, y = prob_predicted, fill = dataset)) +
+p1c <- ggplot(correct_data, aes(x = specimenQuality, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   geom_signif(
     comparisons = list(c("good", "medium"), c("good", "poor"), c("medium", "poor")),  # Specify comparisons
@@ -239,7 +272,7 @@ p1c <- ggplot(correct_data, aes(x = herbQuality, y = prob_predicted, fill = data
 incorrect_data <- cor_inc_data[dataset == "Incorrect Predictions"]
 
 # Plot for Specimen Quality within Incorrect Predictions
-p1i <- ggplot(incorrect_data, aes(x = herbQuality, y = prob_predicted, fill = dataset)) +
+p1i <- ggplot(incorrect_data, aes(x = specimenQuality, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   geom_signif(
     comparisons = list(c("good", "medium"), c("good", "poor"), c("medium", "poor")),  # Specify comparisons
@@ -262,7 +295,7 @@ correct_glue <- cor_inc_data[dataset == "Correct Predictions"]
 incorrect_glue <- cor_inc_data[dataset == "Incorrect Predictions"]
 
 # Plot for Glue (Correct Predictions)
-p2_correct <- ggplot(correct_glue, aes(x = glue, y = prob_predicted, fill = dataset)) +
+p2_correct <- ggplot(correct_glue, aes(x = hasGlue, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   geom_signif(
     comparisons = list(c("TRUE", "FALSE")),  # Replace with actual levels of glue
@@ -275,7 +308,7 @@ p2_correct <- ggplot(correct_glue, aes(x = glue, y = prob_predicted, fill = data
   scale_y_continuous(limits = c(ymin, ymax), breaks = seq(ymin, ymax, by = 0.02))
 
 # Plot for Glue (Incorrect Predictions)
-p2_incorrect <- ggplot(incorrect_glue, aes(x = glue, y = prob_predicted, fill = dataset)) +
+p2_incorrect <- ggplot(incorrect_glue, aes(x = hasGlue, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   geom_signif(
     comparisons = list(c("TRUE", "FALSE")),  # Replace with actual levels of glue
@@ -288,7 +321,7 @@ p2_incorrect <- ggplot(incorrect_glue, aes(x = glue, y = prob_predicted, fill = 
   scale_y_continuous(limits = c(ymin, ymax), breaks = seq(ymin, ymax, by = 0.02))
 
 #####
-# Damage
+# leafDamage
 
 # Filter data for Correct Predictions
 correct_damage <- cor_inc_data[dataset == "Correct Predictions"]
@@ -296,11 +329,11 @@ correct_damage <- cor_inc_data[dataset == "Correct Predictions"]
 # Filter data for Incorrect Predictions
 incorrect_damage <- cor_inc_data[dataset == "Incorrect Predictions"]
 
-# Plot for Damage (Correct Predictions)
-p3_correct <- ggplot(correct_damage, aes(x = damage, y = prob_predicted, fill = dataset)) +
+# Plot for leafDamage (Correct Predictions)
+p3_correct <- ggplot(correct_damage, aes(x = leafDamage, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   geom_signif(
-    comparisons = list(c("major", "medium"), c("major","minor"),c("major","none"),c("medium","minor"),c("medium","none"),c("minor", "none")),  # Replace with actual levels of damage
+    comparisons = list(c("major", "medium"), c("major","minor"),c("major","none"),c("medium","minor"),c("medium","none"),c("minor", "none")),  # Replace with actual levels of leafDamage
     map_signif_level = TRUE,
     test = "t.test"
   ) +
@@ -309,11 +342,11 @@ p3_correct <- ggplot(correct_damage, aes(x = damage, y = prob_predicted, fill = 
   scale_fill_manual(values = c("#21908CFF")) +
   scale_y_continuous(limits = c(ymin, ymax), breaks = seq(ymin, ymax, by = 0.02))
 
-p3_correct <- ggplot(correct_damage, aes(x = damage, y = prob_predicted, fill = dataset)) +
+p3_correct <- ggplot(correct_damage, aes(x = leafDamage, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   geom_signif(
     comparisons = list(c("major", "medium"), c("major", "minor"), c("major", "none"),
-                       c("medium", "minor"), c("medium", "none"), c("minor", "none")),  # Levels of damage
+                       c("medium", "minor"), c("medium", "none"), c("minor", "none")),  # Levels of leafDamage
     map_signif_level = TRUE,
     test = "t.test",
     y_position = c(0.122, 0.126, 0.132, 0.112, 0.136, 0.122)  # Adjust y-positions to prevent overlap
@@ -325,7 +358,7 @@ p3_correct <- ggplot(correct_damage, aes(x = damage, y = prob_predicted, fill = 
 
 
 # Plot for Damage (Incorrect Predictions)
-p3_incorrect <- ggplot(incorrect_damage, aes(x = damage, y = prob_predicted, fill = dataset)) +
+p3_incorrect <- ggplot(incorrect_damage, aes(x = leafDamage, y = prob_predicted, fill = dataset)) +
   geom_boxplot(outlier.colour = "black") +
   geom_signif(
     comparisons = list(c("major", "medium"), c("major", "minor"), c("major", "none"),
@@ -376,28 +409,28 @@ p4_incorrect <- ggplot(incorrect_leaf_stage, aes(x = leafStage, y = prob_predict
   scale_y_continuous(limits = c(ymin, ymax), breaks = seq(ymin, ymax, by = 0.02))
 
 
-###### 1. Test for herbQualityity
-kruskal_test_herbQualityity <- kruskal.test(prob_predicted ~ herbQuality, data = classProbs)
-print(kruskal_test_herbQualityity)
+###### 1. Test for specimenQuality
+kruskal_test_specimenQuality <- kruskal.test(prob_predicted ~ specimenQuality, data = classProbs)
+print(kruskal_test_specimenQuality)
 
 # Pairwise comparisons using Dunn's test
-dunn_herbQuality <- dunn.test(classProbs$prob_predicted, classProbs$herbQuality, method = "bh")
-dunn_herbQuality
+dunn_specimenQuality <- dunn.test(classProbs$prob_predicted, classProbs$specimenQuality, method = "bh")
+dunn_specimenQuality
 # [1] "good - medium" "good - poor"   "medium - poor"
 # p 4.535799e-01 4.527629e-06 4.197685e-06
 
 ######  2. Test for glue
-kruskal_test_glue <- kruskal.test(prob_predicted ~ glue, data = correct_classifications)
+kruskal_test_glue <- kruskal.test(prob_predicted ~ hasGlue, data = correct_classifications)
 print(kruskal_test_glue)
 # Kruskal-Wallis chi-squared = 3.7555, df = 1, p-value = 0.05263
 
 #######  3. Test for damage
-kruskal_test_damage <- kruskal.test(prob_predicted ~ damage, data = correct_classifications)
+kruskal_test_damage <- kruskal.test(prob_predicted ~ leafDamage, data = correct_classifications)
 print(kruskal_test_damage)
 #Kruskal-Wallis chi-squared = 15.65, df = 3, p-value = 0.001338
 
 # Pairwise comparisons
-dunn_damage <- dunn.test(correct_classifications$prob_predicted, correct_classifications$damage, method = "bh")
+dunn_damage <- dunn.test(correct_classifications$prob_predicted, correct_classifications$leafDamage, method = "bh")
 print(dunn_damage$P.adjusted)
 #$P.adjusted
 #[1] 0.1505601144 0.2545721306 0.1375234946 0.1282708638 0.2344388191 0.0005490144
@@ -406,7 +439,7 @@ print(dunn_damage$P.adjusted)
 #[6] "minor - none"  
 
 #######  4. Test for leafStage
-kruskal_test_leafStage <- kruskal.test(prob_predicted ~ leafStage, data = correct_classifications)
+kruskal_test_leafStage <- kruskal.test(prob_predicted ~ tissueDevelopmentalStage, data = correct_classifications)
 print(kruskal_test_leafStage)
 # Kruskal-Wallis chi-squared = 0.0793, df = 1, p-value = 0.78
 
@@ -426,7 +459,7 @@ colors <- c("Correct Predictions" = "#21908CFF", "Incorrect Predictions" = "#FDE
 regression_colors <- c("Correct Predictions" = "#116059FF", "Incorrect Predictions" = "#D4E735FF", "All" = "#440154FF")
 
 # Plot Absolute Age vs Classification Probability
-agelm <- ggplot(combined_data, aes(x = absoluteAge, y = prob_predicted, color = dataset)) +
+agelm <- ggplot(combined_data, aes(x = Age, y = prob_predicted, color = dataset)) +
   geom_point(size=0.9) +
   geom_smooth(method = "lm", se = FALSE, aes(color = dataset), linetype = "solid") +
   scale_color_manual(values = colors) +
@@ -438,7 +471,7 @@ agelm <- ggplot(combined_data, aes(x = absoluteAge, y = prob_predicted, color = 
         axis.title.x = element_text(size=10),
         axis.title.y = element_text(size=10))
 agelm
-ggsave("herbarium-predictors-analysis/plot_lm_age-vs-prob.png", plot = agelm, width = 6, height = 4)
+ggsave("Figures_Tables/plot_lm_age-vs-prob.png", plot = agelm, width = 6, height = 4)
 
 # Greenness vs Classification Probability
 greenlm <- ggplot(combined_data, aes(x = greenIndex, y = prob_predicted, color = dataset)) +
@@ -452,10 +485,10 @@ greenlm <- ggplot(combined_data, aes(x = greenIndex, y = prob_predicted, color =
         axis.title.x = element_text(size=10),
         axis.title.y = element_text(size=10))
 greenlm
-ggsave("herbarium-predictors-analysis/lm_green_combined.png", plot = greenlm, width = 6, height = 4)
+ggsave("Figures_Tables/lm_green_combined.png", plot = greenlm, width = 6, height = 4)
 
 # Green Index vs  Age with Polynomial and Linear Regression
-age_gi <- ggplot(combined_data, aes(x = absoluteAge, y = greenIndex, color = dataset)) +  # Correct color mapping
+age_gi <- ggplot(combined_data, aes(x = Age, y = greenIndex, color = dataset)) +  # Correct color mapping
   geom_point(size = 0.9) +  # Points
   geom_smooth(method = "lm", se = FALSE, aes(color = dataset), linetype = "solid") +  # Linear regression line
   scale_color_manual(values = colors) +  # Dataset colors
@@ -468,7 +501,7 @@ age_gi <- ggplot(combined_data, aes(x = absoluteAge, y = greenIndex, color = dat
         axis.title.y = element_text(size=10))
 age_gi
 # Save the plot
-ggsave("herbarium-predictors-analysis/lm_age_vs_greenIndex_poly_vs_linear.png", plot = age_gi, width = 6, height = 4)
+ggsave("Figures_Tables/lm_age_vs_greenIndex_poly_vs_linear.png", plot = age_gi, width = 6, height = 4)
 
 # Nearest Taxon Distance vs Classification Probability
 ntdlm <- ggplot(combined_data, aes(x = ntd, y = prob_predicted, color = dataset)) +
@@ -483,7 +516,7 @@ ntdlm <- ggplot(combined_data, aes(x = ntd, y = prob_predicted, color = dataset)
         axis.title.x = element_text(size=10),
         axis.title.y = element_text(size=10))
 ntdlm
-ggsave("herbarium-predictors-analysis/lm_ntd_combined.png", plot = ntdlm, width = 6, height = 4)
+ggsave("Figures_Tables/lm_ntd_combined.png", plot = ntdlm, width = 6, height = 4)
 
 
 
@@ -500,30 +533,32 @@ fig7 <- (agelm + greenlm + age_gi + ntdlm) +
 ggsave("Figures_Tables/Fig8-regressions.png", plot = fig7, width = 8.5, height = 7)
 
 
+
+
 #'------------------------------------------------------------------------------
 #' @Logistic_regressions-Table4_TableS3
 #-------------------------------------------------------------------------------
 
-logmodel <- glm(correct ~ glue + damage + doy + herbQuality + leafStage + greenIndex + absoluteAge + ntd + leafKg_m2, 
+logmodel <- glm(correct ~ hasGlue + leafDamage + doyOfCollection + specimenQuality + tissueDevelopmentalStage + greenIndex + Age + ntd + leafKg_m2, 
              data = classProbs, 
              family = binomial)
 summary(logmodel)
 
 # Save summary to a text file
-sink("herbarium-predictors-analysis/result_logregression_summary.txt")
+sink("result_logregression_summary.txt")
 print(summary(logmodel))
 sink()
 
 # Save coefficients to a CSV file
 coefficients_df <- as.data.frame(summary(logmodel)$coefficients)
-write.csv(coefficients_df, "herbarium-predictors-analysis/Table4_logregression_coefficients.csv", row.names = TRUE)
+write.csv(coefficients_df, "Table4_logregression_coefficients.csv", row.names = TRUE)
 
 ########### Random Forest, variable importance
 library(randomForest)
 
 classProbs$correct <- as.factor(classProbs$correct)
 
-model_rf <- randomForest(correct ~ glue + damage + herbQuality + leafStage + greenIndex + absoluteAge + ntd + leafKg_m2, data = classProbs, 
+model_rf <- randomForest(correct ~ hasGlue + leafDamage + specimenQuality + tissueDevelopmentalStage + greenIndex + Age + ntd + leafKg_m2, data = classProbs, 
                          importance = TRUE)
 
 # Check variable importance
@@ -539,7 +574,7 @@ importance_data$Variable <- rownames(importance_data)
 importance_data <- importance_data[, c("Variable", "MeanDecreaseAccuracy", "MeanDecreaseGini")]
 
 # Write the data frame to a CSV file
-write.csv(importance_data, file = "herbarium-predictors-analysis/TableS3_variable_importance_rf.csv", row.names = FALSE)
+write.csv(importance_data, file = "TableS3_variable_importance_rf.csv", row.names = FALSE)
 
 
 #'------------------------------------------------------------------------------
@@ -549,7 +584,7 @@ write.csv(importance_data, file = "herbarium-predictors-analysis/TableS3_variabl
 ## Fig S5: Confusion matrix from coefficient-based predictions.
 
 # Generate CM from predictions
-pred_cm <- confusion_matrices_prediction_plsda(predictions_table)
+pred_cm <- confusion_matrices_prediction_plsda(predictions_table_ntd)
 
 # Plot
 # Extract and clean confusion matrix
@@ -562,7 +597,12 @@ confusion_matrix <- apply(confusion_matrix, 2, as.numeric)  # Convert to numeric
 mean_accuracy <- sum(diag(pred_cm$confusion_matrix)) / sum(pred_cm$confusion_matrix)  # from performance table
 
 # Melt the confusion matrix to long format
-conf_mean_long <- melt(pred_cm$mean_confusion_matrix, id.vars = "Reference", variable.name = "Prediction", value.name = "Mean")
+conf_mean_long <- tidyr::pivot_longer(
+  data = pred_cm$mean_confusion_matrix,
+  cols = -Reference,
+  names_to = "Prediction",
+  values_to = "Mean"
+)
 
 # Round Mean values to the nearest whole number
 conf_mean_long$Mean <- round(conf_mean_long$Mean)
@@ -651,14 +691,14 @@ LMAlm <- ggplot(combined_data, aes(x = leafKg_m2, y = prob_predicted, color = da
         axis.title.x = element_text(size=10),
         axis.title.y = element_text(size=10))
 LMAlm
-ggsave("herbarium-predictors-analysis/lm_leafLMA.png", plot = LMAlm, width = 6, height = 4)
+ggsave("Figures_Tables/lm_leafLMA.png", plot = LMAlm, width = 6, height = 4)
 
 
 # Fig. S9: Linear and polynomial regressions of collection Julian day against classification probabilities.
-poly_doylm <- ggplot(combined_data, aes(x = doy, y = prob_predicted, color = dataset)) +
+poly_doylm <- ggplot(combined_data, aes(x =  doyOfCollection, y = prob_predicted, color = dataset)) +
   geom_point(size = 0.9) +  # Points
   geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE, linetype = "dashed", size = 1.2, show.legend = FALSE) +  # Polynomial regression line
-  geom_smooth(method = "lm", se = FALSE, linetype = "solid", size = 1.2) +  # Linear regression line
+  geom_smooth(method = "lm", se = FALSE, linetype = "solid", linewidth = 1.2) +  # Linear regression line
   scale_color_manual(values = colors) +  # Dataset colors
   labs(title = "Day Collected vs Classification Probability",
        subtitle = "Linear vs Polynomial Regression (Degree 2)",
@@ -668,7 +708,7 @@ poly_doylm <- ggplot(combined_data, aes(x = doy, y = prob_predicted, color = dat
 poly_doylm
 
 # Save the plot
-ggsave("herbarium-predictors-analysis/lm_DOY_combined_poly_vs_linear.png", plot = poly_doylm, width = 6, height = 4)
+ggsave("Figures_Tables/lm_DOY_combined_poly_vs_linear.png", plot = poly_doylm, width = 6, height = 4)
 
 
 
@@ -745,104 +785,6 @@ print(ntd_scatter_plot)
 
 # Save the scatterplot to a PNG file
 ggsave(paste0(output_path, "plot_Pcorrect_by_ntd.png"), plot = ntd_scatter_plot, width = 6.5, height = 4)
-
-
-
-### PLOT probability by scan number 0,1,2
-
-#predictions_table_ntd_pd <- fread(paste0(output_path, "predictions_table_plsda25spp.csv"))
-
-# Restrict scans to the first three per accession_leaf and renumber rows
-predictions_scan <- predictions_table_ntd_pd[, .SD[1:3], by = accession_leaf]
-predictions_scan[, scan_index := seq_len(.N) - 1, by = accession_leaf]  # Renumber rows as 0, 1, 2
-
-# Ensure that only groups with all three scans are included
-valid_predictions <- predictions_scan[, if (.N == 3) .SD, by = accession_leaf]
-
-# Extract probability of the predicted class
-valid_predictions[, predicted_probability := mapply(function(class, row) {
-  row[[class]]  # Directly access the column matching the predicted class
-}, predicted_class, split(.SD, seq_len(nrow(.SD))), SIMPLIFY = TRUE),
-.SDcols = colnames(predictions_scan)[grepl("^[A-Z]", colnames(predictions_scan))]]
-
-# Prepare data for plotting (include accession_leaf for validation)
-plot_data <- valid_predictions[, .(accession_leaf, scan_index, correct, predicted_probability)]
-
-# Remove accession_leaf groups where all correct values are the same
-filtered_plot_data <- plot_data[, if (!(all(correct) || all(!correct))) .SD, by = accession_leaf]
-
-## Chi-squared test
-# Create contingency table: Count correct and incorrect predictions for each scan
-contingency_table <- filtered_plot_data[, .N, by = .(scan_index, correct)]
-contingency_table <- dcast(contingency_table, scan_index ~ correct, value.var = "N", fill = 0)
-setnames(contingency_table, c("scan_index", "FALSE", "TRUE"), c("scan_index", "Incorrect", "Correct"))
-
-# Perform Chi-Square Test
-chi_square_test <- chisq.test(contingency_table[, .(Correct, Incorrect)])
-
-# Print results
-print("Contingency Table:")
-print(contingency_table)
-print("Chi-Square Test Results:")
-print(chi_square_test)
-
-# Add a column for total predictions per scan
-contingency_table[, Total := Correct + Incorrect]
-
-# Calculate proportions
-contingency_table[, Correct_Proportion := Correct / Total]
-contingency_table[, Incorrect_Proportion := Incorrect / Total]
-
-# Melt the data for plotting proportions
-proportion_data <- melt(
-  contingency_table,
-  id.vars = "scan_index",
-  measure.vars = c("Incorrect_Proportion", "Correct_Proportion"),
-  variable.name = "Classification",
-  value.name = "Proportion"
-)
-
-# Update classification labels for the legend
-proportion_data[, Classification := ifelse(Classification == "Correct_Proportion", "Correct", "Incorrect")]
-
-# Create labels for incorrect and correct counts
-contingency_table[, Label := paste0("Incorrect: ", Incorrect, "\nCorrect: ", Correct)]
-
-# Reorder levels of correct to ensure "Correct" is on the left
-plot_data[, correct := factor(correct, levels = c(TRUE, FALSE))]
-
-# Generate the probabilities boxplot
-boxplot <- ggplot(plot_data, aes(x = factor(scan_index), y = predicted_probability, fill = correct)) +
-  geom_boxplot(position = position_dodge(width = 0.75), alpha = 0.7) +
-  labs(
-    title = "Prediction Probabilities",
-    x = "Scan",
-    y = "Probability of Predicted Class",
-    fill = "Classification"
-  ) +
-  scale_fill_manual(
-    values = c("TRUE" = "#21908CFF", "FALSE" = "#FDE725FF"),
-    labels = c("TRUE" = "Correct", "FALSE" = "Incorrect")  # Custom legend labels
-  ) +
-  #scale_y_continuous(limits = c(0.035, 0.125)) +
-  theme(
-    text = element_text(size = 10),
-    plot.title = element_text(size = 11),
-    axis.text.x = element_text(angle = 0, hjust = 0.5),
-    legend.position = "top"
-  )
-# Save the plot
-#ggsave("classification_probabilities_boxplot_with_counts.png", plot = boxplot, width = 8, height = 6)
-
-# Combine the plots side by side using patchwork
-combined_plot <- bar_chart + boxplot + plot_layout(ncol = 2)
-
-# Display the combined plot
-print(combined_plot)
-
-# Save the combined plot to a single PDF
-ggsave(paste0(output_path, "plot_pred_by_scan-Pvalue0.2119.png"), plot = combined_plot, width = 8.5, height = 4)
-
 
 #'------------------------------------------------------------------------------
 #' @End

@@ -27,3 +27,20 @@ data_split <- function(meta) {
   return(selected_rows)
 }
 
+
+## for Classification
+data_segments_classification <- function(X, meta, split) {
+  repeat {
+    # Filter training data
+    meta_split <- meta[split, ]
+    
+    # Sample one measurement per specimen
+    sampled_rows <- meta_split[, .SD[sample(.N, 1)], by = specimenIdentifier]$sample
+    
+    # Check that there is class diversity
+    if (length(unique(meta[sampled_rows]$scientificName)) >= 2) {
+      return(sampled_rows)
+    }
+    # Else: repeat until segment contains at least 2 species
+  }
+}

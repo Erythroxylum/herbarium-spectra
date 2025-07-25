@@ -74,7 +74,7 @@ model_performance <- function(meta_split,
   predicted_sd <- apply(predicted, 1, sd)
   predicted_se <- predicted_sd / sqrt(length(models))
   
-  # Combine with meta information and summarize by `accession`
+  # Combine with meta information and summarize by `specimenIdentifier`
   predicted_summary <- meta_split
   predicted_summary$observed <- frame$trait
   predicted_summary$predicted_mean <- predicted_mean
@@ -97,13 +97,13 @@ application_performance <- function(X,
                                     trait_observed,
                                     predicted) {
   
-  # Ave
-  ave <- data.table(accession = meta_split$accession,
+  # Average
+  ave <- data.table(specimenIdentifier = meta_split$specimenIdentifier,
                     trait_observed = trait_observed,
                     predicted = predicted[[X]])
   ave <- ave[, .(mean(trait_observed), mean(predicted)), 
-             by = "accession"]
-  colnames(ave) <- c("accession", "trait_observed", "predicted")
+             by = "specimenIdentifier"]
+  colnames(ave) <- c("specimenIdentifier", "trait_observed", "predicted")
   
   # Performance at the Axes level
   per <- parameters(obs = ave$trait_observed, 

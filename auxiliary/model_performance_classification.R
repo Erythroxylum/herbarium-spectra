@@ -1,4 +1,5 @@
 #-------------------------------------------------------------------------------
+# Model Performance Function for PLS-DA
 model_performance_plsda <- function(meta_split,
                                     species_split, 
                                     spectra_split,
@@ -6,95 +7,108 @@ model_performance_plsda <- function(meta_split,
                                     ncomp,
                                     threads = 1) {
   
-  # Data for predicting
-  frame <- cbind(species_split, spectra_split)
-  colnames(frame)[1] <- "species"
+  # Clean species labels and prepare prediction frame
+  species_split <- gsub("_", " ", species_split)
+  frame <- cbind(species = species_split, spectra_split)
   
-  #----------------------------------------------------------------------------- 
-  # Apply prediction function
-  application_predict <- function(X,
-                                  models,
-                                  frame,
-                                  ncomp) {
-    # Predict new values
-    predicted <- predict(models[[X]], 
-                         newdata = frame,
-                         ncomp = ncomp,
-                         type = "prob")
+  #-----------------------------------------------------------------------------
+  # Predict function (safe)
+  application_predict <- function(X, models, frame, ncomp) {
+    predicted <- try(
+      predict(models[[X]], newdata = frame, ncomp = ncomp, type = "prob"),
+      silent = TRUE
+    )
+    
+    if (inherits(predicted, "try-error") || is.null(predicted)) {
+      stop(sprintf("prediction failed for model[%d]", X))
+    }
+    
+    if (!is.matrix(predicted) && !is.data.frame(predicted)) {
+      stop(sprintf("prediction for model[%d] is not a matrix or data.frame", X))
+    }
     
     predicted <- as.data.table(cbind(iteration = X, predicted))
-    
     return(predicted)
   }
   
-  # Predicted in parallel
-  predicted <- pbmclapply(X = 1:length(models), 
-                          FUN = application_predict, 
-                          models = models,
-                          frame = frame,
-                          ncomp = ncomp,
-                          mc.preschedule = TRUE, 
-                          mc.set.seed = FALSE,
-                          mc.cores = threads,
-                          mc.cleanup = TRUE)
+  # Run predictions in parallel
+  predicted <- pbmclapply(
+    X = seq_along(models),
+    FUN = application_predict,
+    models = models,
+    frame = frame,
+    ncomp = ncomp,
+    mc.preschedule = TRUE,
+    mc.set.seed = FALSE,
+    mc.cores = threads,
+    mc.cleanup = TRUE
+  )
   
-  #----------------------------------------------------------------------------- 
-  # Evaluate performance
-  application_performance <- function(X,
-                                      species_split,
-                                      predicted) {
+  #-----------------------------------------------------------------------------
+  # Performance evaluation function
+  application_performance <- function(X, species_split, prediction) {
+    if (is.null(prediction) || !is.data.frame(prediction)) {
+      stop(sprintf("prediction[[%d]] is invalid or NULL", X))
+    }
     
-    # Extract predicted probabilities for the iteration
-    iteration <- predicted[[X]][, -1, with = FALSE]  # Remove the "iteration" column
-    species_names <- colnames(iteration)
-    predicted_species <- apply(iteration, 1, which.max)
+    prediction_matrix <- prediction[, -1, with = FALSE]  # remove iteration column
+    species_names <- colnames(prediction_matrix)
+    
+    predicted_species <- apply(prediction_matrix, 1, which.max)
     predicted_species <- species_names[predicted_species]
     
-    # Create confusion matrix
+    # Ensure consistent factor levels for confusion matrix
+    predicted_species <- as.character(predicted_species)
+    species_split <- as.character(species_split)
+    all_classes <- union(unique(species_split), unique(predicted_species))
+    predicted_species <- factor(predicted_species, levels = all_classes)
+    species_split <- factor(species_split, levels = all_classes)
+    
+    # Confusion matrix
     tab <- table(Predicted = predicted_species, Actual = species_split)
+    
+    if (nrow(tab) < 2 || ncol(tab) < 2) {
+      stop(sprintf("Confusion matrix is degenerate at iteration %d", X))
+    }
+    
     cm <- confusionMatrix(tab)
     
-    # Export results
-    results <- data.table(iteration = X, ncomp = ncomp)  # Add ncomp to its own column
-    overall_metrics <- as.data.table(t(cm$overall))  # Convert overall metrics to data.table
-    results <- cbind(results, overall_metrics)       # Combine with results table
-    
-    # Add per-class metrics
+    # Extract performance
+    overall <- as.data.table(t(cm$overall))
     byClass <- as.data.table(cm$byClass)
-    byClass[, Class := rownames(cm$byClass)]  # Add class names as a column
+    byClass[, Class := rownames(cm$byClass)]
+    stopifnot("Class" %in% names(byClass))
     
-    # Combine results
-    results <- cbind(results, byClass)
-    return(results)
+    result <- cbind(data.table(iteration = X, ncomp = ncomp), overall, byClass)
+    return(result)
   }
   
-  # Performance in parallel
-  performance <- pbmclapply(X = 1:length(models),
-                            FUN = application_performance,
-                            species_split = species_split,
-                            predicted = predicted,
-                            mc.preschedule = TRUE, 
-                            mc.set.seed = FALSE,
-                            mc.cores = threads,
-                            mc.cleanup = TRUE)
+  # Run performance evaluation in parallel
+  performance <- pbmclapply(
+    X = seq_along(models),
+    FUN = function(X) application_performance(
+      X,
+      species_split = species_split,
+      prediction = predicted[[X]]
+    ),
+    mc.preschedule = TRUE,
+    mc.set.seed = FALSE,
+    mc.cores = threads,
+    mc.cleanup = TRUE
+  )
   
-  # Combine results into a single data.table
-  performance <- do.call(rbind, performance)
-  performance$Class <- gsub("Class: ", "", performance$Class)  # Clean up class names
+  # Bind results
+  performance <- rbindlist(performance, fill = TRUE)
+  performance$Class <- gsub("Class: ", "", performance$Class)
   
-  #----------------------------------------------------------------------------- 
-  # Get mean and sd of predicted probabilities values
+  predicted <- rbindlist(predicted, fill = TRUE)
   
-  predicted <- do.call(rbind, predicted)
-  
-  #----------------------------------------------------------------------------- 
-  # Return results
-  return(list(performance = performance,
-              predicted = predicted,
-              ncomp = ncomp))
+  return(list(
+    performance = performance,
+    predicted = predicted,
+    ncomp = ncomp
+  ))
 }
-
-
 
 
 
@@ -107,91 +121,98 @@ model_performance_lda <- function(meta_split,
                                   models,
                                   threads = 1) {
   
-  # Data for predicting
-  frame <- cbind(species_split, spectra_split)
-  colnames(frame)[1] <- "species"
+  # Prepare prediction frame
+  species_split <- gsub("_", " ", species_split)
+  frame <- cbind(species = species_split, spectra_split)
   
   #-----------------------------------------------------------------------------
-  # Apply prediction function
-  application_predict <- function(X,
-                                  models,
-                                  frame) {
-    # Predict new values
-    predicted <- predict(models[[X]], 
-                         newdata = frame,
-                         type = "prob")
+  # Predict function
+  application_predict <- function(X, models, frame) {
+    predicted <- try(predict(models[[X]], newdata = frame, type = "prob"), silent = TRUE)
     
-    predicted <- as.data.table(cbind(iteration = X,
-                                     predicted))
+    if (inherits(predicted, "try-error") || is.null(predicted)) {
+      stop(sprintf("Prediction failed for model[%d]", X))
+    }
     
-    #predicted <- as.data.table(predicted)
+    if (!is.matrix(predicted) && !is.data.frame(predicted)) {
+      stop(sprintf("prediction for model[%d] is not a matrix or data.frame", X))
+    }
     
+    predicted <- as.data.table(cbind(iteration = X, predicted))
     return(predicted)
-    
   }
   
-  # Predicted in parallel
-  predicted <- pbmclapply(X = 1:length(models), 
-                          FUN = application_predict, 
-                          models = models,
-                          frame = frame,
-                          mc.preschedule = TRUE, 
-                          mc.set.seed = FALSE,
-                          mc.cores = threads,
-                          mc.cleanup = TRUE)
+  # Run predictions
+  predicted <- pbmclapply(
+    X = seq_along(models),
+    FUN = application_predict,
+    models = models,
+    frame = frame,
+    mc.preschedule = TRUE,
+    mc.set.seed = FALSE,
+    mc.cores = threads,
+    mc.cleanup = TRUE
+  )
   
   #-----------------------------------------------------------------------------
   # Evaluate performance
-  application_performance <- function(X,
-                                      species_split,
-                                      predicted) {
-    # Predict new values
-    iteration <- predicted[[X]][,-1]
-    species_names <- colnames(iteration)
-    predicted_species <- apply(iteration, 1, FUN = which.max)
+  application_performance <- function(X, species_split, prediction) {
+    if (is.null(prediction) || !is.data.frame(prediction)) {
+      stop(sprintf("prediction[[%d]] is invalid or NULL", X))
+    }
+    
+    prediction_matrix <- prediction[, -1, with = FALSE]
+    species_names <- colnames(prediction_matrix)
+    
+    predicted_species <- apply(prediction_matrix, 1, which.max)
     predicted_species <- species_names[predicted_species]
     
-    # Table
-    tab <- table(predicted_species, species_split)
+    predicted_species <- as.character(predicted_species)
+    species_split <- as.character(species_split)
     
-    # Confusion Matrix
+    # Match factor levels
+    all_classes <- union(unique(species_split), unique(predicted_species))
+    predicted_species <- factor(predicted_species, levels = all_classes)
+    species_split <- factor(species_split, levels = all_classes)
+    
+    tab <- table(Predicted = predicted_species, Actual = species_split)
+    
+    if (nrow(tab) < 2 || ncol(tab) < 2) {
+      stop(sprintf("Confusion matrix is degenerate at iteration %d", X))
+    }
+    
     cm <- confusionMatrix(tab)
     
-    # Export results
-    results <- data.table(iteration = X)
-    results <- cbind(results, matrix(cm$overall, nrow = 1))
-    colnames(results)[2:8] <- names(cm$overall)
+    overall <- as.data.table(t(cm$overall))
+    byClass <- as.data.table(cm$byClass)
+    byClass[, Class := rownames(cm$byClass)]
+    stopifnot("Class" %in% names(byClass))
     
-    byClass <- cbind(Class = rownames(cm$byClass),
-                     as.data.table(cm$byClass))
-    
-    results <- cbind(results, byClass)
-    
-    return(results)
-    
+    result <- cbind(data.table(iteration = X), overall, byClass)
+    return(result)
   }
   
-  # Performance in parallel
-  performance <- pbmclapply(X = 1:length(models),
-                            FUN = application_performance,
-                            species_split,
-                            predicted,
-                            mc.preschedule = TRUE, 
-                            mc.set.seed = FALSE,
-                            mc.cores = threads,
-                            mc.cleanup = TRUE)
+  # Evaluate in parallel
+  performance <- pbmclapply(
+    X = seq_along(models),
+    FUN = function(X) application_performance(
+      X,
+      species_split = species_split,
+      prediction = predicted[[X]]
+    ),
+    mc.preschedule = TRUE,
+    mc.set.seed = FALSE,
+    mc.cores = threads,
+    mc.cleanup = TRUE
+  )
   
-  performance <- do.call(rbind, performance)
+  performance <- rbindlist(performance, fill = TRUE)
   performance$Class <- gsub("Class: ", "", performance$Class)
   
-  #-----------------------------------------------------------------------------
-  # Get mean and sd of predicted probabilities values
+  predicted <- rbindlist(predicted, fill = TRUE)
   
-  predicted <- do.call(rbind, predicted)
-  
-  #-----------------------------------------------------------------------------
-  # Return results
-  return(list(performance = performance,
-              predicted = predicted))
-  
+  return(list(
+    performance = performance,
+    predicted = predicted
+  ))
 }

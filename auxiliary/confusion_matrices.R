@@ -79,14 +79,14 @@ confusion_matrices_plsda <- function(meta_split, species_split, spectra_split, m
 # CM from predictions (pred_coef_plsda.R)
 
 confusion_matrices_prediction_plsda <- function(output_dt) {
-  # Load required package
   library(caret)
   library(dplyr)
   library(tidyr)
   
-  # Extract true and predicted classes
-  true_classes <- output_dt$true_class
-  predicted_classes <- output_dt$predicted_class
+  # Ensure true and predicted are factors with same levels
+  all_levels <- union(unique(output_dt$true_class), unique(output_dt$predicted_class))
+  true_classes <- factor(output_dt$true_class, levels = all_levels)
+  predicted_classes <- factor(output_dt$predicted_class, levels = all_levels)
   
   # Generate the confusion matrix
   cm <- confusionMatrix(predicted_classes, true_classes)
@@ -100,12 +100,11 @@ confusion_matrices_prediction_plsda <- function(output_dt) {
     group_by(Reference) %>%
     mutate(Percentage = round((Frequency / sum(Frequency)) * 100, 1))
   
-  # Pivot the table to wide format for better readability
+  # Pivot to wide format
   mean_confusion_matrix <- cm_table %>%
     select(Reference, Prediction, Percentage) %>%
     pivot_wider(names_from = Prediction, values_from = Percentage, values_fill = 0)
   
-  # Return the confusion matrix and statistics
   return(list(
     confusion_matrix = cm$table,
     cm_table = cm_table,

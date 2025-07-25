@@ -1,47 +1,40 @@
 # Herbarium-Spectra: Codes for spectral data processing, trait prediction, and taxonomic classification  
-Datasets and scripts for the manuscript, "Seeing herbaria in a new light: leaf reflectance spectroscopy unlocks predictive trait and
-classification modeling in plant biodiversity collections"
 
-Access it here: https://ecoevorxiv.org/repository/view/8529/
+Replication scripts for the manuscript, *Seeing herbaria in a new light: leaf reflectance spectroscopy unlocks predictive trait and classification modeling in plant biodiversity collections* published in *New Phytologist*, 04 July 2025  
+📖 [Access the paper](https://doi.org/10.1111/nph.70357)
 
-Codes written by J. Antonio Guzmán Q. and Dawson M. White
-
-This project was funded by the Harvard University Herbaria and the NSF BII DBI-2021898, with personnel support from NSF REU-2150058.
+Authors: J. Antonio Guzmán Q. and Dawson M. White  
+Funding: Harvard University Herbaria, NSF BII DBI-2021898, NSF REU-2150058  
 
 Use of this code is restricted to non-commercial, academic purposes.  
-Please contact Erythroxylum for other use cases.
+For other use cases, please contact **Erythroxylum**.
 
 ---
 
-## Data 
+## How to Use
 
-Archived data downloads can be accessed via the Plant Diversity and Ecology collection in Harvard Dataverse: https://doi.org/10.7910/DVN/LXPHBC
+To replicate the analyses in this repository:
 
-The archive contains herbarium spectral files, metadata, and processed tabular spectra files with metadata. 
+1. **Clone the repository** using Git or by downloading the ZIP file from GitHub.
+2. **Create a folder named `data/`** in the root directory of the repository.
+3. **Download the dataset** from the Plant Diversity and Ecology collection in Harvard Dataverse:  
+   [https://doi.org/10.7910/DVN/LXPHBC](https://doi.org/10.7910/DVN/LXPHBC)  
+   The dataset is titled **DMWhiteHUHspec1_processed_spectra_files**.
+4. **Copy the downloaded data** into the `data/` folder you created.
 
-### Download Herbarium data
+### Repository Structure
 
-Raw, 350-2500 nm: https://drive.google.com/file/d/1_bnzdlXsSkzrLFELbbS9wgQpDPQwq4Ef/view?usp=drive_link
+- `R/` — Main analysis scripts for trait prediction and classification  
+- `auxiliary/` — Supporting functions and utilities used by scripts in `R/`  
+- `plotting/` — Scripts for visualizing results
 
-Reflectance, 5 nm, 450-4500 nm : https://drive.google.com/file/d/1ZBQGuae5zxliNUAUAXa7P3nfC3J2x6OM/view?usp=drive_link
+---
 
-Normalized, 5 nm, 450-4500 nm : https://drive.google.com/file/d/1WfuBLkThTyftzUcrA3S1_gtvigJEKtkb/view?usp=drive_link
-
-CWT, 5 nm, 450-4500 nm : https://drive.google.com/file/d/1Sb1NlduodcEPBb5WTfVU6r5iddzdPQMn/view?usp=drive_link
-
-### Download Kothari data
-
-Raw, 350-2500 nm: https://drive.google.com/file/d/1GUSemp1XfPWn3pkPg2oKudxhpk5fONzq/view?usp=sharing
-
-Reflectance, 5 nm, 450-4500 nm : https://drive.google.com/file/d/1zYdDELh9k5y-0inQco18rRVHhQzoQdhB/view?usp=sharing
-
-Normalized, 5 nm, 450-4500 nm : https://drive.google.com/file/d/1xrx5iIiRJ3qtmMNo3oswpGjYwPD5Zpj1/view?usp=sharing
-
-CWT, 5 nm, 450-4500 nm : https://drive.google.com/file/d/1j2MdQoKL0t4KjU_D4xRPEPLDwH4T8XTj/view?usp=sharing
+## Analysis Workflow
 
 ### Plot spectra
 
-**`plotting/plotting_functions_spectra.R`** Plot means, quartiles, coefficient of variation of spectra (Fig. S2)
+**`plotting/plotting_functions_spectra.R`** Plot means, quartiles, coefficient of variation of spectra (Fig. S3)
   
 ---
 
@@ -83,11 +76,11 @@ Optional:
 
 ## Trait prediction from coefficients
 
-Script to predict LMA from coefficients derived from different band regions or transformed spectra and output performance metrics (for Table 2 & Figs 4, 5).
+Script to predict LMA from coefficients derived from different band regions or transformed spectra and output performance metrics (for Fig. 3, Table S1, & Table 4).
 
 **`R/prediction_from_coefficients_LMA.R`**
 
-Script to predict values for other traits modeled by Kothari et al. 2023 (for Fig. 5)
+Script to predict values for other traits modeled by Kothari et al. 2023 (for Fig. 4 & Table S2)
 
 **`R/prediction_from_coefficients_other_traits.R`**
 
@@ -96,10 +89,7 @@ Script to predict values for other traits modeled by Kothari et al. 2023 (for Fi
 
 - **`plotting/plotting_functions_traits.R`**
 
-Reflectance, coefficients and VIP plots (Fig. 3), Trait observed vs predicted biplots (Fig. 4), violin plots of predicted vs observed trait values (Fig. 5)
-
-
-
+Reflectance, coefficients and VIP plots (Fig. 2), Trait observed vs predicted biplots (Fig. 3), violin plots of predicted vs observed trait values (Fig. 4)
 
 ---
 
@@ -129,18 +119,18 @@ The scripts generate the following files:
 ## Plotting scripts
 - **`plotting/plotting_functions_classification.R`**
 
-Classification performance (Table 3), Confusion matrices (Fig. 6), and VIP plots (Fig. S3, S4).
-
+Classification performance (Table 5), Confusion matrices (Fig. 5), and VIP plots (Figs. S4, S5).
 
 ## Analyses of herbarium factors on classification model success
 
 - **`R/phylogenetic_distance.R`**
+
 Phylogenetic diversity metrics and nearest taxon distances are calculated and table is output to metadata using the phylogenetic distances script.
 
 - **`R/prediction_classification_analysis-factors_plotting.R`**
 
 Scripts for predicting classes based on PLS-DA models generated with `R/leaf_classification_plsda.R`.
-The script then contains various plotting functions for the analyses of herbarium factors on classification probabilities and accuracy (Fig. 7, Fig. 8, Table 3, Table S3, Fig. S5, Figs S7-S9).
+The script then contains various plotting functions for the analyses of herbarium factors on classification probabilities and accuracy (Figs. 6 & 7, Table 6, and SI materials).
 
 
 

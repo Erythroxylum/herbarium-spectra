@@ -17,6 +17,8 @@ library(caret)
 library(plsVarSel)
 library(parallel)
 library(pbmcapply)
+library(future.apply)
+library(progressr) 
 
 #'------------------------------------------------------------------------------
 #' @Source_code
@@ -42,7 +44,7 @@ root_path <- getwd()
 #-------------------------------------------------------------------------------
 
 # Define source
-source <- "Kothari" #Kothari or HUH
+source <- "HUH" #Kothari or HUH
 dataset <- "ref" # ref, cwt, refnorm
 
 # Define bands of interest
@@ -62,13 +64,13 @@ if(source == "HUH") {
   
   # HUH
   if (dataset == "cwtnorm") {
-    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_cwt5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_cwt5nm_norm_450-2400.csv"))
   } else if (dataset == "cwt") {
-    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_cwt5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_cwt5nm_450-2400.csv"))
   } else if (dataset == "ref") {
-    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_ref5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_ref5nm_450-2400.csv"))
   } else if (dataset == "refnorm") {
-    frame <- fread(paste0(root_path, "/DMWhiteHUHspec1_sp25leaf561_ref5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/data/DMWhiteHUHspec1_sp25leaf560_ref5nm_norm_450-2400.csv"))
   } else {
     stop("Invalid dataset specified for HUH.")
   }
@@ -77,16 +79,16 @@ if(source == "HUH") {
   frame <- frame[!is.na(leafKg_m2),]
   
   # HUH meta
-  meta <- frame[, c("collector", "specimenIdentifier", "targetClass", "targetTissueNumber", "measurementIndex", "scientificName",
+  meta <- frame[, c("collector", "specimenIdentifier", "targetTissueClass", "targetTissueNumber", "measurementIndex", "scientificName",
                   "Genus", "Family", "Class", "Order",
                   "eventDate", "Age", "measurementFlags",
-                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex")]
+                  "tissueNotes", "hasGlue", "tissueDevelopmentalStage", "greenIndex", "growthForm")]
 
   #meta$sample <- 1:nrow(meta)
-  meta$sample <- idx_analysis
+  meta$sample <- frame$idx_analysis
   
   # HUH traits
-  traits <- frame[, c("leafKg_m2", "leafThickness")]
+  traits <- frame[, c("leafKg_m2")]
   
   # HUH bands
   cbands <- as.character(bands)
@@ -96,13 +98,13 @@ if(source == "HUH") {
   
   # Kothari
   if (dataset == "cwtnorm") {
-    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_cwt5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/../KothariPressedSpec_pressed_unavg_cwt5nm_norm_450-2400.csv"))
   } else if (dataset == "refnorm") {
-    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_ref5nm_norm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/../KothariPressedSpec_pressed_unavg_ref5nm_norm_450-2400.csv"))
   } else if (dataset == "cwt") {
-    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_cwt5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/../KothariPressedSpec_pressed_unavg_cwt5nm_450-2400.csv"))
   } else if (dataset == "ref") {
-    frame <- fread(paste0(root_path, "/KothariPressedSpec_pressed_unavg_ref5nm_450-2400.csv"))
+    frame <- fread(paste0(root_path, "/../KothariPressedSpec_pressed_unavg_ref5nm_450-2400.csv"))
   } else {
     stop("Invalid dataset specified for Kothari.")
   }
@@ -139,13 +141,13 @@ if(source == "HUH") {
 
 # Run this ONCE interactively, then load for cwt and normalization comparison
 #' # Get rows for training
-#split <- data_split(meta = meta, p = 0.7)
+split <- data_split(meta = meta, p = 0.7)
 #' 
 #' # Export for record
-#saveRDS(split, paste0(root_path, "/results/", source, "/pls_", source, "_split.rds"))
+saveRDS(split, paste0(root_path, "/results/", source, "/pls_", source, "_split.rds"))
 
-# reload for CWT
-split <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_split.rds"))
+# reload for norm, CWT
+#split <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_split.rds"))
 
 #' #-------------------------------------------------------------------------------
 #' #' @Segments
@@ -153,26 +155,26 @@ split <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_split
 
 # Run this ONCE interactively, then load for cwt and normalization comparison
 # Select a spectral measurement per specimen
-#iterations <- 1000
-#segments <- pbmclapply(X = 1:iterations,
-#                        FUN = data_segments,
-#                        meta = meta,
-#                        split = split,
-#                        mc.set.seed = TRUE,
-#                        mc.cores = 8) # If windows = 1
+iterations <- 1000
+segments <- pbmclapply(X = 1:iterations,
+                        FUN = data_segments,
+                        meta = meta,
+                        split = split,
+                        mc.set.seed = TRUE,
+                        mc.cores = 8) # If windows = 1
  
 #' # Export for record
-#saveRDS(segments, paste0(root_path, "/results/", source, "/pls_", source, "_segments.rds"))
+saveRDS(segments, paste0(root_path, "/results/", source, "/pls_", source, "_segments.rds"))
 
 # reload for CWT
-segments <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_segments.rds"))
+# segments <- readRDS(paste0(root_path, "/results/", source, "/pls_", source, "_segments.rds"))
 
 #-------------------------------------------------------------------------------
 #' @Model_tune
 #-------------------------------------------------------------------------------
 
 # Select the optimal number of components for all the iterations
-ncomp_max <- 20
+ncomp_max <- 5
 
 # Models to evaluate the optimal
 opt_models <- model_tune(meta = meta,
@@ -186,7 +188,7 @@ opt_models <- model_tune(meta = meta,
 # Plot optima
 #PRESS
 pdf(paste0(out_path, "/Ncomp_PRESS_plot.pdf"), width = 5, height = 4)
-plot(x = 1:20,
+plot(x = 1:5,
      y = colMeans(opt_models[metric == "PRESS" | estimate == "PRESS", 7:ncol(opt_models)]),
      main = "Optimal number of components",
      xlab = "Number of components",
@@ -195,7 +197,7 @@ dev.off()
 
 #R2
 pdf(paste0(out_path, "/Ncomp_R2_plot.pdf"), width = 5, height = 4)
-plot(x = 1:20,
+plot(x = 1:5,
      y = colMeans(opt_models[metric == "R2" | estimate == "R2", 7:ncol(opt_models)]),
      main = "Optimal number of components",
      xlab = "Number of components",
@@ -204,7 +206,7 @@ dev.off()
 
 #RMSEP
 pdf(paste0(out_path,"/Ncomp_RMSEP_plot.pdf"), width = 5, height = 4)
-plot(x = 1:20,
+plot(x = 1:5,
      y = colMeans(opt_models[metric == "RMSEP" | estimate == "RMSEP", 7:ncol(opt_models)]),
      main = "Optimal number of components",
      xlab = "Number of components",
@@ -219,7 +221,7 @@ ncomp <- as.numeric(which.min(colMeans(opt_models[metric == "PRESS" | estimate =
 
 # Export csv of statistics for record and figures
 fwrite(opt_models, paste0(out_path, "/pls_", source, "_opt_comp_models.csv"))
-fwrite(data.table(ncomp = ncomp), paste0(out_path, "/", source, "_opt_comp.csv"))
+fwrite(data.table(ncomp = ncomp), paste0(out_path, "/", "ncomp.csv"))
 
 #-------------------------------------------------------------------------------
 #' @Final_model for prediction
@@ -228,10 +230,10 @@ fwrite(data.table(ncomp = ncomp), paste0(out_path, "/", source, "_opt_comp.csv")
 models <- model_build(meta = meta,
                       split = split,
                       segments = segments,
-                      traits = traits[,1],
+                      traits = traits,
                       spectra = spectra,
                       ncomp = ncomp,
-                      threads = 8) # If windows = 1
+                      threads = 1) # If windows = 1
 
 # Export models, optional, very heavy
 #saveRDS(models, paste0(out_path, "/pls_", source, "_final_models.rds"))
@@ -245,7 +247,7 @@ training_performance <- model_performance(meta_split = meta[split,],
                                           spectra_split = spectra[split,],
                                           models = models,
                                           ncomp = ncomp,
-                                          threads = 8) # If windows = 1
+                                          threads = 1) # If windows = 1
 
 # Export
 fwrite(training_performance$performance, paste0(out_path, "/pls_", source, "_", dataset, "_", min(bands), "-", max(bands), "_training_performance.csv"))

@@ -5,15 +5,26 @@
 model_build_plsda <- function(meta, 
                               split, 
                               segments,
-                              species, 
+                              rank,
                               spectra,
                               ncomp,
                               threads) {
   
+  # Capture the column name
+  rank_name <- deparse(substitute(rank))
+  
+  # Check column exists
+  if (!rank_name %in% names(meta)) {
+    stop(paste("Column", rank_name, "not found in metadata."))
+  }
+  
+  # Extract the taxon label vector
+  species <- meta[[rank_name]]
+  
   # Data for training
-  meta_split <- meta[split,]
+  meta_split <- meta[split, ]
   species_split <- species[split]
-  spectra_split <- spectra[split,]
+  spectra_split <- spectra[split, ]
   
   frame <- cbind(species_split, spectra_split)
   colnames(frame)[1] <- "species"
@@ -26,32 +37,35 @@ model_build_plsda <- function(meta,
                     frame,
                     ncomp) {
     
-    # Get samples from segments to train
-    get_segments <- split %in% segments[[X]]
-    meta_split <- meta_split[get_segments,]
-    sub_frame <- frame[get_segments,]
+    segment_idx <- segments[[X]]
+    relative_idx <- which(split %in% segment_idx)
     
-    # Model control
-    ctrl <- trainControl(index = data_folds(meta_split$species, k = 10))
+    if (length(relative_idx) < 2) {
+      return(try(stop("Too few samples in segment"), silent = TRUE))
+    }
     
-    # Perform model
-    model <- train(species ~ .,
-                   data = sub_frame,
-                   method = "pls",
-                   trControl = ctrl,
-                   preProcess = NULL,
-                   tuneGrid = expand.grid(ncomp = ncomp),
-                   metric = "Accuracy",
-                   maxit = 10000)
+    meta_segments <- meta_split[relative_idx, ]
+    sub_frame <- frame[relative_idx, ]
     
-    # Clean memory
-    rm(list = c("get_segments", "meta_split", "sub_frame"))
+    if (length(unique(sub_frame$species)) < 2) {
+      return(try(stop("Only one class in segment"), silent = TRUE))
+    }
+    
+    ctrl <- trainControl(index = data_folds(sub_frame$species, k = 10))
+    
+    model <- try(train(species ~ .,
+                       data = sub_frame,
+                       method = "pls",
+                       trControl = ctrl,
+                       preProcess = NULL,
+                       tuneGrid = expand.grid(ncomp = ncomp),
+                       metric = "Accuracy",
+                       maxit = 10000),
+                 silent = TRUE)
     
     return(model)
-    
   }
   
-  # Parallel processing
   complete <- pbmclapply(X = 1:length(segments), 
                          FUN = build, 
                          split = split, 
@@ -66,60 +80,72 @@ model_build_plsda <- function(meta,
                          mc.allow.recursive = TRUE)
   
   return(complete)
-  
 }
 
 # LDA
 model_build_lda <- function(meta, 
                             split, 
                             segments,
-                            species, 
+                            rank,
                             spectra,
                             threads) {
   
-  # Data for training
-  meta_split <- meta[split,]
-  species_split <- species[split]
-  spectra_split <- spectra[split,]
+  # Resolve the column name from unquoted argument
+  rank_name <- deparse(substitute(rank))
   
+  # Check that column exists
+  if (!rank_name %in% names(meta)) {
+    stop(paste("Column", rank_name, "not found in metadata."))
+  }
+  
+  # Extract species/taxon vector
+  species <- meta[[rank_name]]
+  
+  # Subset to split
+  meta_split <- meta[split, ]
+  species_split <- species[split]
+  spectra_split <- spectra[split, ]
+  
+  # Build data frame for modeling
   frame <- cbind(species_split, spectra_split)
   colnames(frame)[1] <- "species"
   
-  # Application loop
-  build <- function(X, 
-                    split, 
-                    segments,
-                    meta_split,
-                    frame) {
+  # One model per segment
+  build <- function(X, split, segments, meta_split, frame) {
+    segment_idx <- segments[[X]]
     
-    # Get samples from segments to train
-    get_segments <- split %in% segments[[X]]
-    meta_split <- meta_split[get_segments,]
-    sub_frame <- frame[get_segments,]
+    # Map global sample indices to local split positions
+    relative_idx <- which(split %in% segment_idx)
     
-    # Model control
-    ctrl <- trainControl(index = data_folds(meta_split$species, k = 10))
+    if (length(relative_idx) < 2) {
+      return(try(stop("Too few samples in segment"), silent = TRUE))
+    }
     
-    # Perform model
-    model <- train(species ~ .,
-                   data = sub_frame,
-                   method = "lda",
-                   trControl = ctrl,
-                   preProcess = NULL,
-                   metric = "Accuracy",
-                   maxit = 10000)
+    sub_frame <- frame[relative_idx, ]
     
-    # Clean memory
-    rm(list = c("get_segments", "meta_split", "sub_frame"))
+    # Corrected: check class diversity using sub_frame, not meta_segment
+    if (length(unique(sub_frame$species)) < 2) {
+      return(try(stop("Only one class in segment"), silent = TRUE))
+    }
+    
+    # Generate CV folds (you can replace data_folds if needed)
+    ctrl <- trainControl(index = data_folds(sub_frame$species, k = 10))
+    
+    model <- try(train(species ~ .,
+                       data = sub_frame,
+                       method = "lda",
+                       trControl = ctrl,
+                       preProcess = NULL,
+                       metric = "Accuracy"),
+                 silent = TRUE)
     
     return(model)
-    
   }
   
-  # Parallel processing
-  complete <- pbmclapply(X = 1:length(segments), 
-                         FUN = build, 
-                         split = split, 
+  # Run in parallel
+  complete <- pbmclapply(X = seq_along(segments), 
+                         FUN = build,
+                         split = split,
                          segments = segments,
                          meta_split = meta_split,
                          frame = frame,
@@ -130,5 +156,4 @@ model_build_lda <- function(meta,
                          mc.allow.recursive = TRUE)
   
   return(complete)
-  
 }
