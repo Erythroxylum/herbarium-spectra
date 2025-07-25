@@ -1,7 +1,7 @@
 # Herbarium-Spectra: Codes for spectral data processing, trait prediction, and taxonomic classification  
 
 Replication scripts for the manuscript, *Seeing herbaria in a new light: leaf reflectance spectroscopy unlocks predictive trait and classification modeling in plant biodiversity collections* published in *New Phytologist*, 04 July 2025  
-📖 [Access the paper](https://doi.org/10.1111/nph.70357)
+📖 Access the paper: [https://doi.org/10.1111/nph.70357](https://doi.org/10.1111/nph.70357)
 
 Authors: J. Antonio Guzmán Q. and Dawson M. White  
 Funding: Harvard University Herbaria, NSF BII DBI-2021898, NSF REU-2150058  
@@ -36,7 +36,7 @@ To replicate the analyses in this repository:
 
 **`plotting/plotting_functions_spectra.R`** Plot means, quartiles, coefficient of variation of spectra (Fig. S3)
   
-----
+
 
 ## Data processing
 **`R/Spectrolab_process_data.R`**
@@ -47,7 +47,7 @@ Scripts for combining spectra and metadata files, vector normalization, metadata
 
 Scripts for FWHM band resampling, band trimming, and continuous wavelet transformations.
 
----
+
 
 ## Trait Estimation  
 
@@ -91,7 +91,7 @@ Script to predict values for other traits modeled by Kothari et al. 2023 (for Fi
 
 Reflectance, coefficients and VIP plots (Fig. 2), Trait observed vs predicted biplots (Fig. 3), violin plots of predicted vs observed trait values (Fig. 4)
 
----
+
 
 ## Taxonomic classification 
 
