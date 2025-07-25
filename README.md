@@ -36,7 +36,7 @@ To replicate the analyses in this repository:
 
 **`plotting/plotting_functions_spectra.R`** Plot means, quartiles, coefficient of variation of spectra (Fig. S3)
   
----
+----
 
 ## Data processing
 **`R/Spectrolab_process_data.R`**
