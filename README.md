@@ -4,7 +4,8 @@ Replication scripts for the manuscript, *Seeing herbaria in a new light: leaf re
 📖 Access the paper: [https://doi.org/10.1111/nph.70357](https://doi.org/10.1111/nph.70357)
 
 Authors: Dawson M. White, Jeannine Cavender-Bares, Charles C. Davis, J. Antonio Guzmán Q., Shan Kothari, Jorge M. Robles, José Eduardo Meireles
-Funding: Harvard University Herbaria, NSF BII DBI-2021898, NSF REU-2150058  
+
+The following sources provided funding essential to this project: Harvard University Herbaria, NSF BII DBI-2021898, NSF REU-2150058  
 
 Use of this code is restricted to non-commercial, academic purposes.  
 For other use cases, please contact **Erythroxylum**.
