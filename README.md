@@ -20,14 +20,16 @@ To replicate the analyses in this repository:
 2. **Create a folder named `data/`** in the root directory of the repository.
 3. **Download the dataset** from the Plant Diversity and Ecology collection in Harvard Dataverse:  
    [https://doi.org/10.7910/DVN/LXPHBC](https://doi.org/10.7910/DVN/LXPHBC)  
-   The dataset is titled **DMWhiteHUHspec1_processed_spectra_files**.
-4. **Copy the downloaded data** into the `data/` folder you created.
+   The folder titled **DMWhiteHUHspec1_processed_spectra_files** contains six files, comprising the reflectance spectra, vector-normalized spectra, and continuous wavelet transformed spectra for both the herbarium dataset and for the pressed leaf dataset.
+4. **Copy the downloaded spectra filesa** into the `data/` folder you created.
 
 ### Repository Structure
 
-- `R/` — Main analysis scripts for trait prediction and classification  
-- `auxiliary/` — Supporting functions and utilities used by scripts in `R/`  
+- `herbarium-spectra.Rproj` - An R project file with directory organization.
+- `R/` — Main analysis scripts for trait prediction and taxonomic classification analyses
+- `auxiliary/` — Supporting functions and utilities called by scripts in `R/`  
 - `plotting/` — Scripts for visualizing results
+- `phylogram_pd_TimeTree5.tre` — A time-calibrated phylogeny of the 25 study species. This tree is generated in the `R/phylogenetic_distance.R` script and is called to generate Fig. 5.
 
 ---
 
