@@ -44,7 +44,7 @@ FHWM <- rep(res, length(resampled_bands))
 spectra_resampled <- resampling_FWHM(spectra = spectra,
                                      wavelengths = bands,
                                      new_wavelengths = resampled_bands,
-                                     FWHM = FHWM)
+                                     FWHM = FWHM)
 
 plot(as.numeric(colnames(spectra_resampled)), 
      as.matrix(spectra_resampled[50,])[1,])
@@ -107,7 +107,7 @@ FHWM <- rep(res, length(resampled_bands))
 spectra_resampled <- resampling_FWHM(spectra = spectra,
                                      wavelengths = bands,
                                      new_wavelengths = resampled_bands,
-                                     FWHM = FHWM)
+                                     FWHM = FWHM)
 
 plot(as.numeric(colnames(spectra_resampled)), 
      as.matrix(spectra_resampled[50,])[1,])
