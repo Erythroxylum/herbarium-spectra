@@ -39,7 +39,7 @@ res <- 5.0 # Define resolution to use
 
 # Resample spectra
 resampled_bands <- ceiling(seq(340, 2510, res))
-FHWM <- rep(res, length(resampled_bands))
+FWHM <- rep(res, length(resampled_bands))
 
 spectra_resampled <- resampling_FWHM(spectra = spectra,
                                      wavelengths = bands,
